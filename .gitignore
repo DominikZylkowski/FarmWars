@@ -1,0 +1,7 @@
+styles/css/*
+/node_modules/*
+npm-debug.log
+*.js.map
+*.css.map
+.vscode
+.idea

@@ -1,0 +1,107 @@
+@use 'variables' as *;
+
+body {
+  margin: 0;
+  height: 100vh;
+  background: $bg-color;
+  color: $text-color;
+  font-family: 'VT323', monospace;
+  display: flex;
+  flex-direction: column;
+}
+
+/* TOPBAR*/
+.topbar {
+  color: $topbar-text-color;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: $layout-topbar-height;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-4;
+  padding: $space-4 $space-5;
+  background: $color-topbar-bg;
+  border-bottom: 4px solid $color-topbar-border;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+
+  &__brand {
+    display: flex;
+    flex-direction: column;
+    gap: $space-1;
+  }
+
+  &__logo {
+    font-size: 2.2rem;
+    line-height: 1;
+    letter-spacing: 1px;
+  }
+
+  &__tag {
+    font-size: 1rem;
+    opacity: 0.8;
+  }
+
+  &__resources {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: $space-2;
+  }
+
+  &__resource {
+    min-width: 120px;
+    padding: $space-2 $space-3;
+    color: $color-text-dark;
+    background: $color-panel-fill;
+    border: 4px solid $color-panel-border;
+    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+    text-align: center;
+  }
+
+  &__resource-count {
+    color: $color-accent-dark;
+  }
+}
+
+/* MENU */
+.menu {
+  background: $panel-color;
+  padding: 120px 80px;
+  text-align: center;
+  border: 7px solid $border-color;
+  margin: auto; 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  &__title {
+    margin: 0;
+    font-size: 36px;
+    font-weight: 700;
+  }
+
+  &__button {
+    margin-top: 50px;
+    padding: 15px 50px;
+    font-size: 18px;
+    font-weight: bold;
+    background: $start-button-color;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+      background: lighten($primary-color, 10%);
+      box-shadow: 0 4px 8px rgba(28, 155, 85, 0.4);
+      transform: translateY(-5px);
+    }
+
+    &:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #2eeb6d;
+    }
+  }
+}
