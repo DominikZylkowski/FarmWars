@@ -9,15 +9,24 @@ $color-topbar-bg: #3d2a1e;
 $color-topbar-border: #5a4a3e; 
 $layout-topbar-height: 88px;  
 
+// PLANSZA GRY
+$color-game-bg: #5d9d4d;
+$color-field-border: #5a7d35;
+$color-grid-outline: #47692c;
+$color-field-light: #79b85a;
+$color-field-dark: #6aa14e;
+$house-slot-width: 220px;
+$tile-min-height: 96px;
+
 // PANEL / MENU
-$panel-color: #f5deb3;        
-$border-color: #8e6847;       
-$color-panel-fill: #f1ddb8;   
+$panel-color: #f5deb3;
+$border-color: #8e6847;
+$color-panel-fill: #f1ddb8;
 $color-panel-border: #6d472b;
 
 // PRZYCISK START / AKCENTY
-$start-button-color: #11971c; 
-$primary-color: #11971c;      
+$start-button-color: #11971c;
+$primary-color: #11971c;
 $color-accent-dark: #4e7d35;  
 
 // SPACJE / MARGINESY
@@ -26,3 +35,15 @@ $space-2: 8px;
 $space-3: 12px;
 $space-4: 16px;
 $space-5: 20px;
+
+// SKALOWANIE PLANSZY
+$board-scale-desktop: 1;
+$board-scale-tablet: 0.78;
+$board-scale-mobile: 0.58;
+
+$house-slot-width-base: 220px;
+$house-size-base: 300px;
+$tile-min-height-base: 96px;
+
+$breakpoint-tablet: 1024px;
+$breakpoint-mobile: 768px;

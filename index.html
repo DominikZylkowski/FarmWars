@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="keywords" content="HTML, CSS, JavaScript">
+<meta name="keywords" content="HTML, SCSS, JavaScript">
 <meta name="author" content="Dominik Żyłkowski">
 <title>FarmWars</title>
+<link rel="icon" href="./assets/favicon/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="./assets/favicon/favicon.png" sizes="any">
+<link rel="apple-touch-icon" href="./assets/favicon/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
@@ -14,22 +17,36 @@
 
 <body>
 
-<!-- Navbar -->
-<div class="topbar">
-  <div class="topbar__logo">FarmWars</div>
+<!-- Top Bar -->
+<div class="topBar">
+  <div class="topBar__logo">FarmWars</div>
 
- <div class="topbar__resources">
-        <div class="topbar__resource">Drewno: <span class="topbar__resource-count" data-resource="wood">0</span></div>
-        <div class="topbar__resource">Nasiona: <span class="topbar__resource-count" data-resource="seeds">0</span></div>
-        <div class="topbar__resource">Kamień: <span class="topbar__resource-count" data-resource="stone">0</span></div>
+ <div class="topBar__resources">
+        <div class="topBar__resource">Drewno: <span class="topBar__resource-count" data-resource="wood">0</span></div>
+        <div class="topBar__resource">Nasiona: <span class="topBar__resource-count" data-resource="seeds">0</span></div>
+        <div class="topBar__resource">Kamień: <span class="topBar__resource-count" data-resource="stone">0</span></div>
       </div>
 </div>
 
-<!-- Menu -->
-<div class="menu">
-  <h1 class="menu__title">Menu</h1>
-  <button class="menu__button" type="button">Start</button>
+<main class="game-core">
+  <section class="game-core__stage">
+    <div class="game-board" id="gameBoard">
+      <div class="game-board__house-slot" aria-label="Miejsce na domek">
+  <img src="./assets/images/house.png" alt="Domek" />
 </div>
+      <div class="game-board__grid" id="gameGrid" aria-label="Plansza gry"></div>
+    </div>
+  </section>
+</main>
 
+    <!-- Menu -->
+    <div class="menu menu--overlay" id="gameMenu">
+      <h1 class="menu__title">Menu</h1>
+      <button class="menu__button" id="startGameButton" type="button">Start</button>
+    </div>
+  </section>
+</main>
+
+<script src="./js/main.js"></script>
 </body>
 </html>

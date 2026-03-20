@@ -1,8 +1,16 @@
 @use 'variables' as *;
 
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
   margin: 0;
-  height: 100vh;
+  min-height: 100vh;
+}
+
+body {
   background: $bg-color;
   color: $text-color;
   font-family: 'VT323', monospace;
@@ -10,8 +18,8 @@ body {
   flex-direction: column;
 }
 
-/* TOPBAR*/
-.topbar {
+/* TOPBAR */
+.topBar {
   color: $topbar-text-color;
   position: sticky;
   top: 0;
@@ -65,17 +73,124 @@ body {
   }
 }
 
+/* OBSZAR GRY */
+.game-core {
+  flex: 1;
+  min-height: 0;
+
+  &__stage {
+    position: relative;
+    width: 100%;
+    min-height: calc(100vh - #{$layout-topbar-height});
+    padding: $space-5;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.04)),
+      $color-game-bg;
+  }
+}
+
+.game-board {
+  width: 100%;
+  min-height: calc(100vh - #{$layout-topbar-height} - (#{$space-5} * 2));
+  display: grid;
+  grid-template-columns: calc(#{$house-slot-width-base} * var(--board-scale)) 1fr;
+  gap: calc(#{$space-4} * var(--board-scale));
+  align-items: stretch;
+
+  &__house-slot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    padding: calc(#{$space-3} * var(--board-scale));
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.08)),
+      linear-gradient(
+        135deg,
+        $color-field-light 25%,
+        $color-field-dark 25%,
+        $color-field-dark 50%,
+        $color-field-light 50%,
+        $color-field-light 75%,
+        $color-field-dark 75%,
+        $color-field-dark 100%
+      );
+    background-size: 100% 100%, 20px 20px;
+
+    img {
+      width: min(100%, calc(#{$house-size-base} * var(--board-scale)));
+      aspect-ratio: 1 / 1;
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    gap: 0;
+    align-content: stretch;
+    justify-content: stretch;
+    background: $color-grid-outline;
+  }
+}
+
+:root {
+  --board-scale: #{$board-scale-desktop};
+}
+
+.game-tile {
+  position: relative;
+  min-width: 0;
+
+  aspect-ratio: 1 / 1;
+
+  border: 1px solid rgba(32, 74, 25, 0.28);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(0, 0, 0, 0.08)),
+    linear-gradient(135deg, var(--tile-a) 25%, var(--tile-b) 25%, var(--tile-b) 50%, var(--tile-a) 50%, var(--tile-a) 75%, var(--tile-b) 75%, var(--tile-b) 100%);
+  background-size: 100% 100%, 18px 18px;
+
+  &--light {
+    --tile-a: #7fc15e;
+    --tile-b: #72b352;
+  }
+
+  &--dark {
+    --tile-a: #6cad4f;
+    --tile-b: #619d47;
+  }
+}
+
 /* MENU */
 .menu {
   background: $panel-color;
   padding: 120px 80px;
   text-align: center;
   border: 7px solid $border-color;
-  margin: auto; 
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.18);
+
+  &--overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 20;
+    width: min(420px, calc(100% - (#{$space-5} * 2)));
+    margin: 0;
+    background: rgba(245, 222, 179, 0.96);
+    backdrop-filter: blur(2px);
+    transform: translate(-50%, -50%);
+  }
+
+  &.is-hidden {
+    display: none;
+  }
 
   &__title {
     margin: 0;
@@ -94,7 +209,7 @@ body {
     cursor: pointer;
 
     &:hover {
-      background: lighten($primary-color, 10%);
+      background: $primary-color;
       box-shadow: 0 4px 8px rgba(28, 155, 85, 0.4);
       transform: translateY(-5px);
     }
@@ -103,5 +218,30 @@ body {
       transform: translateY(4px);
       box-shadow: 0 2px 0 #2eeb6d;
     }
+  }
+}
+
+@media (max-width: $breakpoint-tablet) {
+  :root {
+    --board-scale: #{$board-scale-tablet};
+  }
+
+  .game-core__stage {
+    padding: 14px;
+  }
+}
+
+@media (max-width: $breakpoint-mobile) {
+  :root {
+    --board-scale: #{$board-scale-mobile};
+  }
+
+  .game-board {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .game-board__house-slot {
+    min-height: calc(160px * var(--board-scale));
   }
 }
