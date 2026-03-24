@@ -15,37 +15,95 @@
 <link rel="stylesheet" href="./styles/css/main.css">
 </head>
 
+<header class="topBar">
+  <!-- Lewa strona: logo + przyciski -->
+  <div class="topBar__left">
+    <div class="topBar__logo">FarmWars</div>
+    <div class="topBar__actions">
+      <button class="topBar__button" id="cannonButton">Armata</button>
+      <button class="topBar__button" id="seedlingButton">Sadzonka</button>
+      <button class="topBar__button" id="woodFenceButton">Płot drewniany</button>
+      <button class="topBar__button" id="stoneWallButton">Murek</button>
+    </div>
+  </div>
+
+  <!-- Środek: poziom -->
+  <div class="topBar__level">
+    Poziom: <span id="levelDisplay">1</span>
+  </div>
+
+  <!-- Prawa strona: zasoby -->
+  <div class="topBar__resources">
+    <span class="topBar__resource">Drewno: <span class="topBar__resource-wood-count" data-resource="wood">0</span></span>
+    <span class="topBar__resource">Nasiona: <span class="topBar__resource-seeds-count" data-resource="seeds">0</span></span>
+    <span class="topBar__resource">Kamień: <span class="topBar__resource-stone-count" data-resource="stone">0</span></span>
+  </div>
+  
+</header>
 <body>
-
-<!-- Top Bar -->
-<div class="topBar">
-  <div class="topBar__logo">FarmWars</div>
-
- <div class="topBar__resources">
-        <div class="topBar__resource">Drewno: <span class="topBar__resource-count" data-resource="wood">0</span></div>
-        <div class="topBar__resource">Nasiona: <span class="topBar__resource-count" data-resource="seeds">0</span></div>
-        <div class="topBar__resource">Kamień: <span class="topBar__resource-count" data-resource="stone">0</span></div>
-      </div>
-</div>
 
 <main class="game-core">
   <section class="game-core__stage">
     <div class="game-board" id="gameBoard">
       <div class="game-board__house-slot" aria-label="Miejsce na domek">
-  <img src="./assets/images/house.png" alt="Domek" />
-</div>
+        <img src="./assets/images/house.png" alt="Domek" />
+      </div>
       <div class="game-board__grid" id="gameGrid" aria-label="Plansza gry"></div>
     </div>
   </section>
 </main>
 
-    <!-- Menu -->
-    <div class="menu menu--overlay" id="gameMenu">
-      <h1 class="menu__title">Menu</h1>
-      <button class="menu__button" id="startGameButton" type="button">Start</button>
-    </div>
-  </section>
-</main>
+<!-- Menu -->
+<div class="menu menu--overlay" id="gameMenu">
+  <h1 class="menu__title">Menu</h1>
+  <button class="menu__button" id="volumeButton" type="button">Volume</button>
+  <button class="menu__button" id="startGameButton" type="button">Start</button>
+</div>
+
+<script>
+ let currentLevel = 1;
+const levelDisplay = document.getElementById('levelDisplay');
+levelDisplay.textContent = currentLevel;
+
+let levelInterval = null;
+let isPaused = false;
+
+function increaseLevel() {
+  currentLevel += 1;
+  levelDisplay.textContent = currentLevel;
+}
+
+// Funkcja startująca odliczanie
+function startLevelInterval() {
+  if (!levelInterval) {
+    levelInterval = setInterval(increaseLevel, 600000); // 10 minut
+  }
+}
+
+// Funkcja zatrzymująca odliczanie
+function stopLevelInterval() {
+  clearInterval(levelInterval);
+  levelInterval = null;
+}
+
+// Startujemy odliczanie od razu po załadowaniu
+startLevelInterval();
+
+// Obsługa ESC do pauzy/wznawiania
+document.addEventListener('keydown', (e) => {
+  if (e.key === "Escape") {
+    if (isPaused) {
+      startLevelInterval();
+      isPaused = false;
+      console.log("Odliczanie wznowione");
+    } else {
+      stopLevelInterval();
+      isPaused = true;
+      console.log("Odliczanie zatrzymane");
+    }
+  }
+});
+</script>
 
 <script src="./js/main.js"></script>
 </body>

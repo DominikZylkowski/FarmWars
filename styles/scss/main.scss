@@ -18,7 +18,7 @@ body {
   flex-direction: column;
 }
 
-/* TOPBAR */
+/* ========================= TOPBAR ========================= */
 .topBar {
   color: $topbar-text-color;
   position: sticky;
@@ -34,157 +34,164 @@ body {
   border-bottom: 4px solid $color-topbar-border;
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
 
-  &__brand {
+  &__left {
     display: flex;
-    flex-direction: column;
-    gap: $space-1;
+    align-items: center;
+    gap: $space-3;
   }
 
   &__logo {
     font-size: 2.2rem;
-    line-height: 1;
-    letter-spacing: 1px;
   }
 
-  &__tag {
-    font-size: 1rem;
-    opacity: 0.8;
+  &__actions {
+    display: flex;
+    gap: $space-2;
+  }
+
+  &__button {
+    cursor: pointer;
+    font-family: inherit;
+    color: $color-text-dark;
+    background: $color-panel-fill;
+    border: 4px solid $color-panel-border;
+    padding: $space-2 $space-3;
+
+    &:hover { filter: brightness(1.1); }
+    &:active { transform: translateY(2px); }
+  }
+
+  &__level {
+    font-weight: bold;
+    font-size: 2rem;
   }
 
   &__resources {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
     gap: $space-2;
   }
 
   &__resource {
     min-width: 120px;
     padding: $space-2 $space-3;
-    color: $color-text-dark;
     background: $color-panel-fill;
     border: 4px solid $color-panel-border;
-    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12);
     text-align: center;
-  }
-
-  &__resource-count {
-    color: $color-accent-dark;
   }
 }
 
-/* OBSZAR GRY */
+/* ========================= GAME AREA ========================= */
 .game-core {
   flex: 1;
-  min-height: 0;
 
   &__stage {
     position: relative;
     width: 100%;
     min-height: calc(100vh - #{$layout-topbar-height});
     padding: $space-5;
-    overflow: hidden;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.04)),
-      $color-game-bg;
+    background: $color-game-bg;
   }
 }
 
+/* ========================= BOARD ========================= */
 .game-board {
   width: 100%;
-  min-height: calc(100vh - #{$layout-topbar-height} - (#{$space-5} * 2));
+  height: 100%;
   display: grid;
   grid-template-columns: calc(#{$house-slot-width-base} * var(--board-scale)) 1fr;
   gap: calc(#{$space-4} * var(--board-scale));
-  align-items: stretch;
-
-  &__house-slot {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100%;
-    padding: calc(#{$space-3} * var(--board-scale));
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.08)),
-      linear-gradient(
-        135deg,
-        $color-field-light 25%,
-        $color-field-dark 25%,
-        $color-field-dark 50%,
-        $color-field-light 50%,
-        $color-field-light 75%,
-        $color-field-dark 75%,
-        $color-field-dark 100%
-      );
-    background-size: 100% 100%, 20px 20px;
-
-    img {
-      width: min(100%, calc(#{$house-size-base} * var(--board-scale)));
-      aspect-ratio: 1 / 1;
-      height: auto;
-      display: block;
-      object-fit: contain;
-    }
-  }
 
   &__grid {
     display: grid;
-    gap: 0;
-    align-content: stretch;
-    justify-content: stretch;
-    background: $color-grid-outline;
+    grid-template-columns: repeat(10, 1fr);
+    grid-auto-rows: 1fr;
+    background: #000;
   }
 }
 
-:root {
-  --board-scale: #{$board-scale-desktop};
-}
-
+/* ========================= TILE ========================= */
 .game-tile {
   position: relative;
-  min-width: 0;
-
   aspect-ratio: 1 / 1;
-
-  border: 1px solid rgba(32, 74, 25, 0.28);
+  border: 1px solid #000; // czarne linie
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(0, 0, 0, 0.08)),
-    linear-gradient(135deg, var(--tile-a) 25%, var(--tile-b) 25%, var(--tile-b) 50%, var(--tile-a) 50%, var(--tile-a) 75%, var(--tile-b) 75%, var(--tile-b) 100%);
-  background-size: 100% 100%, 18px 18px;
+    linear-gradient(180deg, rgba(255,255,255,0.1), rgba(0,0,0,0.08)),
+    url('../../assets/images/grass_texture.png') repeat;
+  background-size: 256px 256px;
+  image-rendering: pixelated;
 
-  &--light {
-    --tile-a: #7fc15e;
-    --tile-b: #72b352;
-  }
-
-  &--dark {
-    --tile-a: #6cad4f;
-    --tile-b: #619d47;
-  }
+  &--light { filter: brightness(1.1); }
+  &--dark { filter: brightness(0.85); }
 }
 
-/* MENU */
+/* ========================= PODŚWIETLENIE ========================= */
+.tile--highlight {
+  outline: 3px solid yellow;
+  z-index: 5;
+}
+
+/* ========================= BLOKADA ========================= */
+.game-tile--blocked {
+  pointer-events: none;
+}
+
+/* ========================= OBIEKTY ========================= */
+.game-tile__grass,
+.game-tile__stone,
+.placed-item {
+  position: absolute;
+  inset: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+}
+
+/* ========================= TRAWA ========================= */
+.game-tile__grass {
+  inset: 20% 25% 10%;
+  pointer-events: none;
+
+  background-image: url('../../assets/images/grass.png');
+}
+
+/* ========================= KAMIEŃ ========================= */
+.game-tile__stone {
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
+
+  background-image: url('../../assets/images/stone.png');
+}
+
+/* ========================= PRZEDMIOTY ========================= */
+.placed-item--cannon {
+  background-image: url('../../assets/images/cannon.png');
+}
+
+.placed-item--seedling {
+  background-image: url('../../assets/images/sapling.png');
+}
+
+.placed-item--woodFence {
+  background-image: url('../../assets/images/wood_fence.png');
+}
+
+.placed-item--stoneWall {
+  background-image: url('../../assets/images/stone_wall.png');
+}
+
+/* ========================= MENU ========================= */
 .menu {
   background: $panel-color;
   padding: 120px 80px;
   text-align: center;
   border: 7px solid $border-color;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.18);
 
   &--overlay {
     position: absolute;
     top: 50%;
     left: 50%;
-    z-index: 20;
-    width: min(420px, calc(100% - (#{$space-5} * 2)));
-    margin: 0;
-    background: rgba(245, 222, 179, 0.96);
-    backdrop-filter: blur(2px);
     transform: translate(-50%, -50%);
   }
 
@@ -193,41 +200,29 @@ body {
   }
 
   &__title {
-    margin: 0;
     font-size: 36px;
-    font-weight: 700;
   }
 
   &__button {
     margin-top: 50px;
     padding: 15px 50px;
-    font-size: 18px;
-    font-weight: bold;
     background: $start-button-color;
-    color: #ffffff;
-    border: none;
-    cursor: pointer;
+    color: white;
 
     &:hover {
       background: $primary-color;
-      box-shadow: 0 4px 8px rgba(28, 155, 85, 0.4);
-      transform: translateY(-5px);
-    }
-
-    &:active {
-      transform: translateY(4px);
-      box-shadow: 0 2px 0 #2eeb6d;
     }
   }
+}
+
+/* ========================= SCALE ========================= */
+:root {
+  --board-scale: #{$board-scale-desktop};
 }
 
 @media (max-width: $breakpoint-tablet) {
   :root {
     --board-scale: #{$board-scale-tablet};
-  }
-
-  .game-core__stage {
-    padding: 14px;
   }
 }
 
@@ -238,10 +233,5 @@ body {
 
   .game-board {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-
-  .game-board__house-slot {
-    min-height: calc(160px * var(--board-scale));
   }
 }
