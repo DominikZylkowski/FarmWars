@@ -7,7 +7,10 @@
 html,
 body {
   margin: 0;
+  width: 100%;
+  height: 100%;
   min-height: 100vh;
+  overflow: hidden; // usuwa paski przewijania
 }
 
 body {
@@ -16,9 +19,11 @@ body {
   font-family: 'VT323', monospace;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
 }
 
-/* TOPBAR */
+/* ========================= TOPBAR ========================= */
 .topBar {
   color: $topbar-text-color;
   position: sticky;
@@ -31,26 +36,12 @@ body {
   gap: $space-4;
   padding: $space-4 $space-5;
   background: $color-topbar-bg;
-  border-bottom: 4px solid $color-topbar-border;
+  border-bottom: 4px solid $color-panel-border;
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
 
-  /* Lewa strona: logo + przyciski */
-  &__left {
-    display: flex;
-    align-items: center;
-    gap: $space-3; // odstęp między logo a przyciskami
-  }
-
-  &__logo {
-    font-size: 2.2rem;
-    line-height: 1;
-    letter-spacing: 1px;
-  }
-
-  &__actions {
-    display: flex;
-    gap: $space-2;
-  }
+  &__left { display: flex; align-items: center; gap: $space-3; }
+  &__logo { font-size: 2.2rem; line-height: 1; letter-spacing: 1px; }
+  &__actions { display: flex; gap: $space-2; }
 
   &__button {
     cursor: pointer;
@@ -65,65 +56,44 @@ body {
     text-align: center;
     transition: 0.15s;
 
-    &:hover {
-      filter: brightness(1.1);
-    }
-
-    &:active {
-      transform: translateY(2px);
-      box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2);
-    }
+    &:hover { filter: brightness(1.1); }
+    &:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2); }
   }
 
-  /* Poziom wyśrodkowany */
-  &__level {
-    position: relative; // już nie absolute
-    font-weight: bold;
-    font-size: 2rem;
-    text-align: center;
-    color: $topbar-text-color;
-  }
-
-  /* Liczniki po prawej */
-  &__resources {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: $space-2;
-  }
-
+  &__level { position: relative; font-weight: bold; font-size: 2rem; text-align: center; color: $topbar-text-color; }
+  &__resources { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $space-2; }
   &__resource {
     min-width: 120px;
     padding: $space-2 $space-3;
     color: $color-text-dark;
     background: $color-panel-fill;
     border: 4px solid $color-panel-border;
-    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12);
     text-align: center;
   }
 }
 
-/* OBSZAR GRY */
+/* ========================= GAME CORE ========================= */
 .game-core {
-  flex: 1;
-  min-height: 0;
+  flex: 1;          // zajmuje całą dostępną przestrzeń
+  min-height: 0;    // konieczne przy flex
 
   &__stage {
     position: relative;
     width: 100%;
-    min-height: calc(100vh - #{$layout-topbar-height});
+    height: 100%;      // dopasowuje się do game-core
     padding: $space-5;
-    overflow: hidden;
+    overflow: hidden;   // żeby trawa/kamienie nie wyciekały
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.04)),
       $color-game-bg;
   }
 }
 
-/* GAME BOARD */
+/* ========================= GAME BOARD ========================= */
 .game-board {
   width: 100%;
-  min-height: calc(100vh - #{$layout-topbar-height} - (#{$space-5} * 2));
+  height: 100%;
   display: grid;
   grid-template-columns: calc(#{$house-slot-width-base} * var(--board-scale)) 1fr;
   gap: calc(#{$space-4} * var(--board-scale));
@@ -134,7 +104,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100%;
     padding: calc(#{$space-3} * var(--board-scale));
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.08)),
@@ -165,59 +134,61 @@ body {
     display: grid;
     gap: 0;
     grid-template-columns: repeat(10, 1fr);
-    grid-auto-rows: 1fr;
-    background: $color-grid-outline;
   }
 }
 
-/* GAME TILE */
+/* ========================= GAME TILE ========================= */
 .game-tile {
   position: relative;
   aspect-ratio: 1 / 1;
   width: 100%;
-  min-width: 0;
-  border: 1px solid rgba(32, 74, 25, 0.28);
+  border: 1px solid #000;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.1), rgba(0,0,0,0.08)),
     url('../../assets/images/grass_texture.png') repeat;
   background-size: 256px 256px;
   image-rendering: pixelated;
 
-  &--light {
-    filter: brightness(1.1);
-  }
-
-  &--dark {
-    filter: brightness(0.85);
-  }
+  &--light { filter: brightness(1.1); }
+  &--dark { filter: brightness(0.85); }
 }
 
+/* ========================= TRAWKA ========================= */
 .game-tile__grass {
   position: absolute;
-  inset: 20% 25% 10%;
+  inset: 0;
   pointer-events: none;
-  background-image: url('../../assets/images/grass.png');
-  background-position: center bottom;
-  background-repeat: no-repeat;
-  background-size: contain;
-  image-rendering: pixelated;
-  transform-origin: bottom center;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  &::after {
+    content: '';
+    display: block;
+    width: 150%;
+    height: 150%;
+    background-image: url('../../assets/images/grass.png');
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    background-size: contain;
+    image-rendering: pixelated;
+    transform-origin: bottom center;
+  }
 }
 
+/* ========================= KAMIEŃ ========================= */
 .game-tile__stone {
   position: absolute;
-  width: 64px;
-  height: 64px;
+  width: 100%;
+  height: 100%;
   background-image: url('../../assets/images/stone.png');
   background-size: contain;
   background-repeat: no-repeat;
   z-index: 2;
   pointer-events: none;
-  left: 0;
-  top: 0;
 }
 
-/* MENU */
+/* ========================= MENU ========================= */
 .menu {
   background: $panel-color;
   padding: 120px 80px;
@@ -241,9 +212,7 @@ body {
     transform: translate(-50%, -50%);
   }
 
-  &.is-hidden {
-    display: none;
-  }
+  &.is-hidden { display: none; }
 
   &__title {
     margin: 0;
@@ -274,32 +243,65 @@ body {
   }
 }
 
-/* ROOT VARIABLES */
-:root {
-  --board-scale: #{$board-scale-desktop};
+/* ========================= SHOP DRAG & DROP ========================= */
+.shop-item {
+  width: 64px;
+  height: 64px;
+  margin: 4px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  cursor: grab;
+  border: 2px solid $color-panel-border;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
+  transition: transform 0.1s, box-shadow 0.1s;
+
+  &:active {
+    cursor: grabbing;
+    transform: scale(1.05);
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3);
+  }
+
+  &--disabled {
+    filter: brightness(0.5);
+    cursor: not-allowed;
+  }
 }
 
-/* MEDIA QUERIES */
-@media (max-width: $breakpoint-tablet) {
-  :root {
-    --board-scale: #{$board-scale-tablet};
-  }
+.game-tile--highlight {
+  outline: 3px solid yellow;
+  z-index: 5;
+  transition: outline 0.1s;
+}
 
-  .game-core__stage {
-    padding: 14px;
-  }
+.game-tile__placed-item {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  top: 0;
+  left: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ========================= ROOT VARIABLES ========================= */
+:root { --board-scale: #{$board-scale-desktop}; }
+
+/* ========================= MEDIA QUERIES ========================= */
+@media (max-width: $breakpoint-tablet) {
+  :root { --board-scale: #{$board-scale-tablet}; }
+  .game-core__stage { padding: 14px; }
 }
 
 @media (max-width: $breakpoint-mobile) {
-  :root {
-    --board-scale: #{$board-scale-mobile};
-  }
-
+  :root { --board-scale: #{$board-scale-mobile}; }
   .game-board {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
   }
-
   .game-board__house-slot {
     min-height: calc(160px * var(--board-scale));
   }
