@@ -199,7 +199,7 @@ function removeGrassFromTile(tile) {
 
   seedCount += getRandomSeedCount();
   updateSeedUI();
-  updateShopButtons(); // <- aktualizacja przycisków sklepu
+  updateShopButtons();
   return true;
 }
 
@@ -241,7 +241,7 @@ function removeStoneFromTile(tile) {
 
   stoneCount += getRandomStoneCount();
   updateStoneUI();
-  updateShopButtons(); // <- aktualizacja przycisków sklepu
+  updateShopButtons();
   return true;
 }
 
@@ -352,7 +352,7 @@ function bootstrapGame() {
   updateSeedUI();
   updateStoneUI();
   updateWoodUI();
-  updateShopButtons(); // <- aktualizacja przycisków przy starcie gry
+  updateShopButtons();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrapGame);
