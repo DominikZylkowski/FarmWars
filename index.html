@@ -1,110 +1,91 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="keywords" content="HTML, SCSS, JavaScript">
-<meta name="author" content="Dominik Żyłkowski">
-<title>FarmWars</title>
-<link rel="icon" href="./assets/favicon/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" href="./assets/favicon/favicon.png" sizes="any">
-<link rel="apple-touch-icon" href="./assets/favicon/favicon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles/css/main.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="keywords" content="HTML, SCSS, JavaScript">
+    <meta name="author" content="Dominik Żyłkowski">
+    <title>FarmWars</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="./assets/favicon/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="./assets/favicon/favicon.png" sizes="any">
+    <link rel="apple-touch-icon" href="./assets/favicon/favicon.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="./styles/css/main.css">
 </head>
 
-<header class="topBar">
-  <!-- Lewa strona: logo + przyciski -->
-  <div class="topBar__left">
-    <div class="topBar__logo">FarmWars</div>
-    <div class="topBar__actions">
-      <button class="topBar__button" id="cannonButton">Armata</button>
-      <button class="topBar__button" id="seedlingButton">Sadzonka</button>
-      <button class="topBar__button" id="woodFenceButton">Płot drewniany</button>
-      <button class="topBar__button" id="stoneWallButton">Murek</button>
-    </div>
-  </div>
-
-  <!-- Środek: poziom -->
-  <div class="topBar__level">
-    Poziom: <span id="levelDisplay">1</span>
-  </div>
-
-  <!-- Prawa strona: zasoby -->
-  <div class="topBar__resources">
-    <span class="topBar__resource">Drewno: <span class="topBar__resource-wood-count" data-resource="wood">0</span></span>
-    <span class="topBar__resource">Nasiona: <span class="topBar__resource-seeds-count" data-resource="seeds">0</span></span>
-    <span class="topBar__resource">Kamień: <span class="topBar__resource-stone-count" data-resource="stone">0</span></span>
-  </div>
-  
-</header>
 <body>
 
-<main class="game-core">
-  <section class="game-core__stage">
-    <div class="game-board" id="gameBoard">
-      <div class="game-board__house-slot" aria-label="Miejsce na domek">
-        <img src="./assets/images/house.png" alt="Domek" />
-      </div>
-      <div class="game-board__grid" id="gameGrid" aria-label="Plansza gry"></div>
+<header class="topBar" id="mainTopBar">
+    <!-- Lewa strona: logo + akcje -->
+    <div class="topBar__left">
+        <div class="topBar__logo">FarmWars</div>
+        <div class="topBar__actions">
+            <button class="topBar__button" id="cannonButton">Armata</button>
+            <button class="topBar__button" id="seedlingButton">Sadzonka</button>
+            <button class="topBar__button" id="woodFenceButton">Płot</button>
+            <button class="topBar__button" id="stoneWallButton">Murek</button>
+        </div>
     </div>
-  </section>
+
+    <!-- Środek: Timer i Poziom (Zmienia się dynamicznie podczas inwazji) -->
+    <div class="topBar__status" id="statusContainer">
+        <span class="topBar__timer-label">
+            Czas: <strong id="prepTimer">00:30</strong>
+        </span>
+        <div class="topBar__level">
+            Poziom: <span class="topBar__level-count" id="levelDisplay">1</span>
+        </div>
+    </div>
+
+    <!-- Prawa strona: zasoby (Licznik drewna, nasion i kamienia) -->
+    <div class="topBar__resources">
+        <span class="topBar__resource">
+            Drewno: <span class="topBar__resource-wood-count">0</span>
+        </span>
+        <span class="topBar__resource">
+            Nasiona: <span class="topBar__resource-seeds-count">0</span>
+        </span>
+        <span class="topBar__resource">
+            Kamień: <span class="topBar__resource-stone-count">0</span>
+        </span>
+    </div>
+</header>
+
+<main class="game-core">
+    <section class="game-core__stage">
+        <div class="game-board" id="gameBoard">
+            <!-- Miejsce na domek (lewa strona) -->
+            <div class="game-board__house-slot">
+                <img src="./assets/images/house.png" alt="Domek gracza" />
+            </div>
+            
+            <!-- Główna siatka gry (miejsce gdzie pojawiają się robaki) -->
+            <div class="game-board__grid" id="gameGrid">
+                <!-- Kafelki i Robaki są generowane tutaj przez JS -->
+            </div>
+        </div>
+    </section>
 </main>
 
-<!-- Menu -->
+<!-- Menu Startowe / Pauza -->
 <div class="menu menu--overlay" id="gameMenu">
-  <h1 class="menu__title">Menu</h1>
-  <button class="menu__button" id="volumeButton" type="button">Volume</button>
-  <button class="menu__button" id="startGameButton" type="button">Start</button>
+    <h1 class="menu__title">FarmWars</h1>
+    <div style="display: flex; gap: 10px; flex-direction: column;">
+        <button class="menu__button" id="startGameButton" type="button">ZAGRAJ</button>
+        <button class="menu__button" id="volumeButton" type="button" style="background: #3498db; border-bottom-color: #2980b9;">DŹWIĘK</button>
+    </div>
 </div>
 
-<script>
- let currentLevel = 1;
-const levelDisplay = document.getElementById('levelDisplay');
-levelDisplay.textContent = currentLevel;
-
-let levelInterval = null;
-let isPaused = false;
-
-function increaseLevel() {
-  currentLevel += 1;
-  levelDisplay.textContent = currentLevel;
-}
-
-// Funkcja startująca odliczanie
-function startLevelInterval() {
-  if (!levelInterval) {
-    levelInterval = setInterval(increaseLevel, 600000); // 10 minut
-  }
-}
-
-// Funkcja zatrzymująca odliczanie
-function stopLevelInterval() {
-  clearInterval(levelInterval);
-  levelInterval = null;
-}
-
-// Startujemy odliczanie od razu po załadowaniu
-startLevelInterval();
-
-// Obsługa ESC do pauzy/wznawiania
-document.addEventListener('keydown', (e) => {
-  if (e.key === "Escape") {
-    if (isPaused) {
-      startLevelInterval();
-      isPaused = false;
-      console.log("Odliczanie wznowione");
-    } else {
-      stopLevelInterval();
-      isPaused = true;
-      console.log("Odliczanie zatrzymane");
-    }
-  }
-});
-</script>
-
+<!-- Skrypt główny -->
 <script src="./js/main.js"></script>
+
 </body>
 </html>

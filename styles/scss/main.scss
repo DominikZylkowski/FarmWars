@@ -1,5 +1,6 @@
 @use 'variables' as *;
 
+/* ========================= RESET & BASE ========================= */
 * {
   box-sizing: border-box;
 }
@@ -10,7 +11,7 @@ body {
   width: 100%;
   height: 100%;
   min-height: 100vh;
-  overflow: hidden; // usuwa paski przewijania
+  overflow: hidden; 
 }
 
 body {
@@ -28,7 +29,7 @@ body {
   color: $topbar-text-color;
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 100; 
   min-height: $layout-topbar-height;
   display: flex;
   align-items: center;
@@ -39,9 +40,49 @@ body {
   border-bottom: 4px solid $color-panel-border;
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
 
-  &__left { display: flex; align-items: center; gap: $space-3; }
+  &__left { 
+    display: flex; 
+    align-items: center; 
+    gap: $space-3; 
+    flex-shrink: 0;
+  }
+  
   &__logo { font-size: 2.2rem; line-height: 1; letter-spacing: 1px; }
-  &__actions { display: flex; gap: $space-2; }
+  
+  &__status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $space-5;
+    flex-grow: 1;
+    background: rgba(0, 0, 0, 0.15);
+    padding: $space-2 $space-4;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+  }
+
+  &__timer-label {
+    font-size: 1.6rem;
+    color: #ffd700; 
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+    
+    strong {
+      font-size: 2rem;
+      margin-left: 10px;
+      font-variant-numeric: tabular-nums; 
+      letter-spacing: 2px;
+    }
+  }
+
+  &__level { 
+    font-weight: bold; 
+    font-size: 1.8rem; 
+    color: $topbar-text-color;
+    border-left: 3px solid rgba(255, 255, 255, 0.2);
+    padding-left: $space-4;
+  }
+
+  &__actions { display: flex; gap: $space-2; flex-shrink: 0; }
 
   &__button {
     cursor: pointer;
@@ -56,34 +97,39 @@ body {
     text-align: center;
     transition: 0.15s;
 
-    &:hover { filter: brightness(1.1); }
-    &:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2); }
+    &:hover:not(:disabled) { filter: brightness(1.1); }
+    &:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2); }
+    
+    &:disabled {
+      filter: brightness(0.5);
+      cursor: not-allowed;
+    }
   }
 
-  &__level { position: relative; font-weight: bold; font-size: 2rem; text-align: center; color: $topbar-text-color; }
-  &__resources { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $space-2; }
+  &__resources { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $space-2; flex-shrink: 0; }
   &__resource {
-    min-width: 120px;
-    padding: $space-2 $space-3;
+    min-width: 100px;
+    padding: $space-1 $space-3;
     color: $color-text-dark;
     background: $color-panel-fill;
     border: 4px solid $color-panel-border;
     box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12);
     text-align: center;
+    font-size: 1.4rem;
   }
 }
 
 /* ========================= GAME CORE ========================= */
 .game-core {
-  flex: 1;          // zajmuje całą dostępną przestrzeń
-  min-height: 0;    // konieczne przy flex
+  flex: 1;
+  min-height: 0;
 
   &__stage {
     position: relative;
     width: 100%;
-    height: 100%;      // dopasowuje się do game-core
+    height: 100%;
     padding: $space-5;
-    overflow: hidden;   // żeby trawa/kamienie nie wyciekały
+    overflow: hidden;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.04)),
       $color-game-bg;
@@ -118,16 +164,16 @@ body {
         $color-field-dark 100%
       );
     background-size: 100% 100%, 20px 20px;
-  }
 
-  &__house-slot img {
-    width: 300px;
-    height: 300px;
-    max-width: calc(#{$house-size-base} * var(--board-scale));
-    max-height: calc(#{$house-size-base} * var(--board-scale));
-    aspect-ratio: 1 / 1;
-    display: block;
-    object-fit: contain;
+    img {
+      width: 300px;
+      height: 300px;
+      max-width: calc(#{$house-size-base} * var(--board-scale));
+      max-height: calc(#{$house-size-base} * var(--board-scale));
+      aspect-ratio: 1 / 1;
+      display: block;
+      object-fit: contain;
+    }
   }
 
   &__grid {
@@ -142,18 +188,38 @@ body {
   position: relative;
   aspect-ratio: 1 / 1;
   width: 100%;
-  border: 1px solid #000;
+  border: 1px solid #000; // ZOSTAWIAMY CZARNĄ KRATKĘ
   background:
     linear-gradient(180deg, rgba(255,255,255,0.1), rgba(0,0,0,0.08)),
     url('../../assets/images/grass_texture.png') repeat;
   background-size: 256px 256px;
   image-rendering: pixelated;
+  overflow: visible;
 
   &--light { filter: brightness(1.1); }
   &--dark { filter: brightness(0.85); }
+
+  // PODŚWIETLENIE JAK NA ZDJĘCIU (ŻÓŁTY PIXEL OUTLINE)
+  &--highlight {
+    z-index: 50;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      // Wsuwamy ramkę o 1px, żeby nie zakrywała czarnej linii
+      top: 1px;
+      left: 1px;
+      right: 1px;
+      bottom: 1px;
+      
+      border: 2px solid #FFEB3B; // Twardy żółty kolor
+      background-color: rgba(255, 235, 59, 0.1); // Bardzo lekki żółty nalot
+      pointer-events: none;
+    }
+  }
 }
 
-/* ========================= TRAWKA ========================= */
+/* ========================= ASSETS ========================= */
 .game-tile__grass {
   position: absolute;
   inset: 0;
@@ -161,31 +227,44 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  z-index: 1;
 
   &::after {
     content: '';
     display: block;
-    width: 150%;
-    height: 150%;
+    width: 150%; 
+    height: 150%; 
     background-image: url('../../assets/images/grass.png');
     background-position: center bottom;
     background-repeat: no-repeat;
     background-size: contain;
     image-rendering: pixelated;
     transform-origin: bottom center;
+    transform: translateY(10%);
   }
 }
 
-/* ========================= KAMIEŃ ========================= */
 .game-tile__stone {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  background-image: url('../../assets/images/stone.png');
-  background-size: contain;
-  background-repeat: no-repeat;
+  inset: 0; 
   z-index: 2;
   pointer-events: none;
+  background-image: url('../../assets/images/stone.png');
+  background-size: contain; 
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
+}
+
+.game-tile__placed-item {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: pixelated;
 }
 
 /* ========================= MENU ========================= */
@@ -204,7 +283,7 @@ body {
     position: absolute;
     top: 50%;
     left: 50%;
-    z-index: 20;
+    z-index: 200; 
     width: min(420px, calc(100% - (#{$space-5} * 2)));
     margin: 0;
     background: rgba(245, 222, 179, 0.96);
@@ -243,50 +322,6 @@ body {
   }
 }
 
-/* ========================= SHOP DRAG & DROP ========================= */
-.shop-item {
-  width: 64px;
-  height: 64px;
-  margin: 4px;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  cursor: grab;
-  border: 2px solid $color-panel-border;
-  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
-  transition: transform 0.1s, box-shadow 0.1s;
-
-  &:active {
-    cursor: grabbing;
-    transform: scale(1.05);
-    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3);
-  }
-
-  &--disabled {
-    filter: brightness(0.5);
-    cursor: not-allowed;
-  }
-}
-
-.game-tile--highlight {
-  outline: 3px solid yellow;
-  z-index: 5;
-  transition: outline 0.1s;
-}
-
-.game-tile__placed-item {
-  position: absolute;
-  width: 64px;
-  height: 64px;
-  top: 0;
-  left: 0;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  pointer-events: none;
-  z-index: 3;
-}
-
 /* ========================= ROOT VARIABLES ========================= */
 :root { --board-scale: #{$board-scale-desktop}; }
 
@@ -294,6 +329,8 @@ body {
 @media (max-width: $breakpoint-tablet) {
   :root { --board-scale: #{$board-scale-tablet}; }
   .game-core__stage { padding: 14px; }
+  .topBar__status { gap: $space-3; }
+  .topBar__timer-label { font-size: 1.2rem; strong { font-size: 1.4rem; } }
 }
 
 @media (max-width: $breakpoint-mobile) {
@@ -302,7 +339,5 @@ body {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
   }
-  .game-board__house-slot {
-    min-height: calc(160px * var(--board-scale));
-  }
+  .topBar__status { flex-direction: column; gap: 0; }
 }
