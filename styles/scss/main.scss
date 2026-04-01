@@ -33,75 +33,135 @@ body {
   min-height: $layout-topbar-height;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: $space-4;
-  padding: $space-4 $space-5;
+  justify-content: flex-start; 
+  padding: 0 $space-4;
   background: $color-topbar-bg;
   border-bottom: 4px solid $color-panel-border;
   box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
   transition: background-color 0.4s ease;
 
-  // KLASA DODAWANA PRZEZ JS PODCZAS ATAKU
   &.is-invasion {
     background: #c0392b !important; 
     border-bottom-color: #96281b;
     animation: pulse-danger 2s infinite;
   }
 
-  &__left { 
-    display: flex; 
-    align-items: center; 
-    gap: $space-3; 
+  &__logo { 
+    font-size: 2.2rem; 
+    line-height: 1; 
+    letter-spacing: 1px; 
+    margin-right: $space-5; 
     flex-shrink: 0;
   }
-  
-  &__logo { font-size: 2.2rem; line-height: 1; letter-spacing: 1px; }
-  
+
+  &__actions { 
+    display: flex; 
+    gap: $space-2; 
+    flex-shrink: 0;
+  }
+
   &__status {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: $space-5;
-    flex-grow: 1;
-    background: rgba(0, 0, 0, 0.15);
-    padding: $space-2 $space-4;
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
+    gap: 60px;
+    position: absolute; 
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    
+    background-color: #2b1d12; 
+    padding: 10px 80px;
+    min-width: 500px;
+    border: 3px solid #1a120b;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   &__timer-label {
     font-size: 1.6rem;
     color: #ffd700; 
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+    letter-spacing: 1px;
     
     strong {
-      font-size: 2rem;
-      margin-left: 10px;
+      font-size: 2.2rem;
+      margin-left: 15px;
       font-variant-numeric: tabular-nums; 
-      letter-spacing: 2px;
+      letter-spacing: 3px;
     }
   }
 
   &__level { 
     font-weight: bold; 
     font-size: 1.8rem; 
-    color: $topbar-text-color;
-    border-left: 3px solid rgba(255, 255, 255, 0.2);
-    padding-left: $space-4;
+    color: #ffd700;
+    letter-spacing: 1px;
+    
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 3px;
+      height: 24px;
+      background: rgba(255, 215, 0, 0.3);
+      margin-right: 30px;
+      vertical-align: middle;
+    }
   }
 
-  &__actions { display: flex; gap: $space-2; flex-shrink: 0; }
+  &__right-side {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-left: auto;   
+    gap: $space-4;      
+  }
+
+  &__resources { 
+    display: flex; 
+    gap: $space-2; 
+    margin-right: $space-2; // Lekkie odsunięcie od przycisku MENU
+  }
+  
+  &__resource {
+    min-width: 100px;
+    padding: $space-1 $space-2;
+    color: $color-text-dark;
+    background: $color-panel-fill;
+    border: 4px solid $color-panel-border;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12);
+    text-align: center;
+    font-size: 1.2rem;
+  }
+
+  /* PRZYCISK MENU W PRAWYM GÓRNYM ROGU */
+  &__menu-btn {
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ffffff;
+    background: #119922; // Zielony kolor
+    border: 4px solid #0f8820;
+    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+    padding: 8px 20px;
+    text-align: center;
+    transition: 0.1s;
+    text-transform: uppercase;
+
+    &:hover { filter: brightness(1.1); }
+    &:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2); }
+  }
 
   &__button {
     cursor: pointer;
     font-family: inherit;
-    font-size: inherit;
+    font-size: 1rem;
     color: $color-text-dark;
     background: $color-panel-fill;
     border: 4px solid $color-panel-border;
     box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12);
-    padding: $space-2 $space-3;
-    min-width: 120px;
+    padding: 4px 12px;
+    min-width: 100px;
     text-align: center;
     transition: 0.15s;
 
@@ -114,22 +174,31 @@ body {
     }
   }
 
-  &__resources { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $space-2; flex-shrink: 0; }
-  
-  &__resource {
-    min-width: 100px;
-    padding: $space-1 $space-3;
-    color: $color-text-dark;
-    background: $color-panel-fill;
-    border: 4px solid $color-panel-border;
-    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12);
-    text-align: center;
-    font-size: 1.4rem;
+  &__cost-preview {
+    font-size: 1rem;
+    color: #ff4d4d;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+    height: 1.2rem; 
+  }
+}
 
-    // SELEKTORY DLA JS (Seeds, Stone, Wood)
-    &-seeds-count, &-stone-count, &-wood-count {
-      font-weight: bold;
-    }
+/* ========================= SHOP ITEM HELPERS ========================= */
+.shop-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+
+  &__max {
+    display: block;
+    min-height: 1.2rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #ffffff;
+    text-shadow: 1px 1px 2px #000;
+    margin-top: 2px;
   }
 }
 
@@ -213,29 +282,24 @@ body {
   &--light { filter: brightness(1.1); }
   &--dark { filter: brightness(0.85); }
 
-  // PODŚWIETLENIE DOSTĘPNOŚCI PODCZAS PRZECIĄGANIA (DRAG & DROP)
   &--can-place {
     &::after {
       content: '';
       position: absolute;
       inset: 0;
-      background: rgba(46, 204, 113, 0.3); // Zielona poświata
-      border: 2px dashed #2ecc71;
+      background: rgba(255, 193, 7, 0.3);
+      border: 2px dashed #ffc107;
       z-index: 5;
       pointer-events: none;
     }
   }
 
-  // PODŚWIETLENIE JAK NA ZDJĘCIU
   &--highlight {
     z-index: 50;
     &::before {
       content: '';
       position: absolute;
-      top: 1px;
-      left: 1px;
-      right: 1px;
-      bottom: 1px;
+      inset: 1px;
       border: 2px solid #FFEB3B;
       background-color: rgba(255, 235, 59, 0.1);
       pointer-events: none;
@@ -267,10 +331,9 @@ body {
     transform: translateY(10%);
   }
 
-  // ROZMIARY Z KODU JS
-  &--size-3::after { transform: translateY(10%) scale(1.2); }
-  &--size-2::after { transform: translateY(10%) scale(0.85); }
-  &--size-1::after { transform: translateY(10%) scale(0.6); }
+  &--size-3::after { transform: translateY(10%) scale(1.0); }
+  &--size-2::after { transform: translateY(10%) scale(0.75); }
+  &--size-1::after { transform: translateY(10%) scale(0.55); }
 }
 
 .game-tile__stone {
@@ -284,7 +347,6 @@ body {
   background-position: center;
   image-rendering: pixelated;
 
-  // ROZMIARY Z KODU JS
   &--size-3 { transform: scale(1.1); }
   &--size-2 { transform: scale(0.8); }
   &--size-1 { transform: scale(0.5); }
@@ -299,6 +361,16 @@ body {
   background-repeat: no-repeat;
   background-position: center;
   image-rendering: pixelated;
+}
+
+/* ========================= ENEMIES ========================= */
+.enemy-worm {
+  image-rendering: pixelated;
+  transition: transform 0.1s linear;
+  
+  &--boss {
+    filter: drop-shadow(0 4px 0 rgba(0,0,0,0.5));
+  }
 }
 
 /* ========================= MENU ========================= */
@@ -333,6 +405,13 @@ body {
     font-weight: 700;
   }
 
+  &__button-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
   &__button {
     margin-top: 50px;
     padding: 15px 50px;
@@ -353,6 +432,48 @@ body {
       transform: translateY(4px);
       box-shadow: 0 2px 0 #2eeb6d;
     }
+
+    &--sub {
+      margin-top: 10px;
+      padding: 10px 30px;
+      font-size: 1.2rem;
+      background: #3498db;
+    }
+  }
+}
+
+/* ========================= VOLUME CONTROL ========================= */
+.volume-control {
+  margin-top: $space-4;
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  font-size: 1.6rem;
+  color: $color-text-dark;
+  font-weight: bold;
+  
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 150px;
+    background: transparent;
+    
+    &::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 12px;
+      cursor: pointer;
+      background: #000;
+      border: 2px solid $border-color;
+    }
+    
+    &::-webkit-slider-thumb {
+      height: 24px;
+      width: 14px;
+      background: #2ecc71;
+      border: 2px solid #000;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -8px;
+    }
   }
 }
 
@@ -370,8 +491,9 @@ body {
 @media (max-width: $breakpoint-tablet) {
   :root { --board-scale: #{$board-scale-tablet}; }
   .game-core__stage { padding: 14px; }
-  .topBar__status { gap: $space-3; }
-  .topBar__timer-label { font-size: 1.2rem; strong { font-size: 1.4rem; } }
+  .topBar { flex-wrap: wrap; height: auto; padding: $space-2; }
+  .topBar__status { position: static; transform: none; order: 1; width: 100%; justify-content: center; margin-top: $space-2; min-width: auto; padding: 10px 20px; }
+  .topBar__right-side { width: 100%; justify-content: flex-end; margin-top: $space-2; }
 }
 
 @media (max-width: $breakpoint-mobile) {
@@ -380,5 +502,4 @@ body {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
   }
-  .topBar__status { flex-direction: column; gap: 0; }
 }

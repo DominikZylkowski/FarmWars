@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="keywords" content="HTML, SCSS, JavaScript">
+    <meta name="keywords" content="HTML, SCSS, JavaScript, Game, Tower Defense">
     <meta name="author" content="Dominik Żyłkowski">
     <title>FarmWars</title>
     
@@ -24,67 +24,91 @@
 <body>
 
 <header class="topBar" id="mainTopBar">
-    <!-- Lewa strona: logo + akcje -->
-    <div class="topBar__left">
-        <div class="topBar__logo">FarmWars</div>
-        <div class="topBar__actions">
+    <!-- 1. LOGO -->
+    <div class="topBar__logo">FarmWars</div>
+
+    <!-- 2. PRZYCISKI AKCJI (SKLEP) -->
+    <div class="topBar__actions">
+        <div class="shop-item">
             <button class="topBar__button" id="cannonButton">Armata</button>
+            <span class="shop-item__max" id="cannonMax">0/5</span>
+        </div>
+        <div class="shop-item">
             <button class="topBar__button" id="seedlingButton">Sadzonka</button>
+            <span class="shop-item__max" id="seedlingMax">0/10</span>
+        </div>
+        <div class="shop-item">
             <button class="topBar__button" id="woodFenceButton">Płot</button>
+            <span class="shop-item__max" id="fenceMax">0/20</span>
+        </div>
+        <div class="shop-item">
             <button class="topBar__button" id="stoneWallButton">Murek</button>
+            <span class="shop-item__max" id="wallMax">0/15</span>
         </div>
     </div>
 
-    <!-- Środek: Timer i Poziom (Zmienia się dynamicznie podczas inwazji) -->
+    <!-- 3. STATUS (TIMER I POZIOM) - Centralny szeroki panel -->
     <div class="topBar__status" id="statusContainer">
         <span class="topBar__timer-label">
-            Czas: <strong id="prepTimer">00:30</strong>
+            ATAK ZA: <strong id="prepTimer">12:46</strong>
         </span>
         <div class="topBar__level">
-            Poziom: <span class="topBar__level-count" id="levelDisplay">67</span>
+            POZIOM: <span id="levelDisplay">1</span>
         </div>
     </div>
 
-    <!-- Prawa strona: zasoby (Licznik drewna, nasion i kamienia) -->
-    <div class="topBar__resources">
-        <span class="topBar__resource">
-            Drewno: <span class="topBar__resource-wood-count">0</span>
-        </span>
-        <span class="topBar__resource">
-            Nasiona: <span class="topBar__resource-seeds-count">0</span>
-        </span>
-        <span class="topBar__resource">
-            Kamień: <span class="topBar__resource-stone-count">0</span>
-        </span>
+    <!-- 4. ZASOBY I KONTROLA - Prawa strona -->
+    <div class="topBar__right-side">
+        <div class="topBar__resources">
+            <span class="topBar__resource">Drewno: <span class="topBar__resource-wood-count">10</span></span>
+            <span class="topBar__resource">Nasiona: <span class="topBar__resource-seeds-count">12</span></span>
+            <span class="topBar__resource">Kamień: <span class="topBar__resource-stone-count">5</span></span>
+        </div>
+
+        <!-- Przycisk MENU (otwiera menu/pauzę) -->
+        <button class="topBar__menu-btn" id="menuGameButton">MENU</button>
+
+        <!-- Informacja o koszcie pod surowcami -->
+        <div class="topBar__cost-preview" id="currentSelectionPanel">
+            <span id="costDetails"></span>
+        </div>
     </div>
 </header>
 
 <main class="game-core">
     <section class="game-core__stage">
         <div class="game-board" id="gameBoard">
-            <!-- Miejsce na domek (lewa strona) -->
+            <!-- Slot na dom gracza (Lewa strona) -->
             <div class="game-board__house-slot">
-                <img src="./assets/images/house.png" alt="Domek gracza" />
+                <img src="./assets/images/house.png" alt="Domek" id="playerHouse" />
             </div>
             
-            <!-- Główna siatka gry (miejsce gdzie pojawiają się robaki) -->
+            <!-- Siatka gry (Prawa strona) -->
             <div class="game-board__grid" id="gameGrid">
-                <!-- Kafelki i Robaki są generowane tutaj przez JS -->
+                <!-- Kafelki (tiles) generowane przez JS -->
             </div>
         </div>
     </section>
 </main>
 
-<!-- Menu Startowe / Pauza -->
+<!-- Menu Startowe / Overlay Pauzy -->
 <div class="menu menu--overlay" id="gameMenu">
     <h1 class="menu__title">FarmWars</h1>
-    <div style="display: flex; gap: 10px; flex-direction: column;">
+    <div class="menu__button-group">
+        <!-- Ten przycisk służy zarówno do startu, jak i do wznowienia (Resume) -->
         <button class="menu__button" id="startGameButton" type="button">ZAGRAJ</button>
-        <button class="menu__button" id="volumeButton" type="button" style="background: #3498db; border-bottom-color: #2980b9;">DŹWIĘK</button>
+        
+        <!-- Opcje dźwięku -->
+        <div class="volume-settings">
+            <div class="volume-control">
+                <label>Głośność</label>
+                <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="0.5">
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Skrypt główny -->
+<!-- Scripts -->
 <script src="./js/main.js"></script>
 
 </body>
