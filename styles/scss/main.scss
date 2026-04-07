@@ -1,5 +1,34 @@
 @use 'variables' as *;
 
+/* ========================= CURSORS & INTERACTION ========================= */
+$cursor-path: '../../assets/images';
+
+// 1. GŁÓWNY KURSOR (Domyślny dla całej gry: mapa, zbieranie, sadzenie, interfejs)
+html, body, .game-tile, .game-tile__placed-item, .game-board {
+  cursor: url('#{$cursor-path}/mainCursor.png') 0 0, auto !important;
+}
+
+// 2. KURSOR WALKI (Tylko dla robaków)
+// Nadpisuje kursor główny tylko w momencie najechania na przeciwnika
+.enemy-worm {
+  cursor: url('#{$cursor-path}/boardCursor.png') 18 18, crosshair !important;
+}
+
+// Kursor w momencie ataku (kliknięcie lewym przyciskiem myszy na robaka)
+.enemy-worm:active {
+  cursor: url('#{$cursor-path}/used_boardCursor.png') 18 18, crosshair !important;
+}
+
+// 3. ELEMENTY INTERAKTYWNE UI
+// Przyciski i sklep używają mainCursor, ale zmieniają ikonę systemową na 'pointer' (łapka) dla czytelności
+button, 
+.topBar__button, 
+.topBar__menu-btn, 
+.menu__button,
+.shop-item {
+  cursor: url('#{$cursor-path}/mainCursor.png') 0 0, pointer !important;
+}
+
 /* ========================= RESET & BASE ========================= */
 * {
   box-sizing: border-box;
@@ -37,12 +66,12 @@ body {
   padding: 0 $space-4;
   background: $color-topbar-bg;
   border-bottom: 4px solid $color-panel-border;
-  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 0 $shadow-standard;
   transition: background-color 0.4s ease;
 
   &.is-invasion {
-    background: #c0392b !important; 
-    border-bottom-color: #96281b;
+    background: $color-danger-bg !important; 
+    border-bottom-color: $color-danger-border;
     animation: pulse-danger 2s infinite;
   }
 
@@ -69,18 +98,17 @@ body {
     left: 50%;
     transform: translateX(-50%);
     white-space: nowrap;
-    
-    background-color: #2b1d12; 
+    background-color: $color-status-bg; 
     padding: 10px 80px;
     min-width: 500px;
-    border: 3px solid #1a120b;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    border: 3px solid $color-status-border;
+    box-shadow: inset 0 2px 4px $shadow-inset-dark;
   }
 
   &__timer-label {
     font-size: 1.6rem;
-    color: #ffd700; 
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+    color: $color-accent-gold; 
+    text-shadow: 2px 2px 0 $shadow-standard;
     letter-spacing: 1px;
     
     strong {
@@ -94,7 +122,7 @@ body {
   &__level { 
     font-weight: bold; 
     font-size: 1.8rem; 
-    color: #ffd700;
+    color: $color-accent-gold;
     letter-spacing: 1px;
     
     &::before {
@@ -102,7 +130,7 @@ body {
       display: inline-block;
       width: 3px;
       height: 24px;
-      background: rgba(255, 215, 0, 0.3);
+      background: $color-status-sep;
       margin-right: 30px;
       vertical-align: middle;
     }
@@ -119,7 +147,7 @@ body {
   &__resources { 
     display: flex; 
     gap: $space-2; 
-    margin-right: $space-2; // Lekkie odsunięcie od przycisku MENU
+    margin-right: $space-2;
   }
   
   &__resource {
@@ -128,45 +156,46 @@ body {
     color: $color-text-dark;
     background: $color-panel-fill;
     border: 4px solid $color-panel-border;
-    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12);
+    box-shadow: inset 0 -4px 0 $shadow-inset-light;
     text-align: center;
     font-size: 1.2rem;
+
+    &-wood-count, &-seeds-count, &-stone-count {
+      font-weight: bold;
+    }
   }
 
-  /* PRZYCISK MENU W PRAWYM GÓRNYM ROGU */
   &__menu-btn {
-    cursor: pointer;
     font-family: inherit;
     font-size: 1.2rem;
     font-weight: bold;
-    color: #ffffff;
-    background: #119922; // Zielony kolor
-    border: 4px solid #0f8820;
-    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+    color: $color-white-pure;
+    background: $color-btn-menu-bg; 
+    border: 4px solid $color-btn-menu-brdr;
+    box-shadow: inset 0 -4px 0 $shadow-standard;
     padding: 8px 20px;
     text-align: center;
     transition: 0.1s;
     text-transform: uppercase;
 
     &:hover { filter: brightness(1.1); }
-    &:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2); }
+    &:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 $shadow-standard; }
   }
 
   &__button {
-    cursor: pointer;
     font-family: inherit;
     font-size: 1rem;
     color: $color-text-dark;
     background: $color-panel-fill;
     border: 4px solid $color-panel-border;
-    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.12);
+    box-shadow: inset 0 -4px 0 $shadow-inset-light;
     padding: 4px 12px;
     min-width: 100px;
     text-align: center;
     transition: 0.15s;
 
     &:hover:not(:disabled) { filter: brightness(1.1); }
-    &:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2); }
+    &:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 -2px 0 $shadow-standard; }
     
     &:disabled {
       filter: brightness(0.5);
@@ -176,14 +205,14 @@ body {
 
   &__cost-preview {
     font-size: 1rem;
-    color: #ff4d4d;
+    color: $color-cost-red;
     font-weight: bold;
-    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 0 $shadow-standard;
     height: 1.2rem; 
   }
 }
 
-/* ========================= SHOP ITEM HELPERS ========================= */
+/* ========================= SHOP ITEM ========================= */
 .shop-item {
   display: flex;
   flex-direction: column;
@@ -196,8 +225,8 @@ body {
     min-height: 1.2rem;
     font-size: 1.1rem;
     font-weight: bold;
-    color: #ffffff;
-    text-shadow: 1px 1px 2px #000;
+    color: $color-white-pure;
+    text-shadow: 1px 1px 2px $color-black-pure;
     margin-top: 2px;
   }
 }
@@ -214,7 +243,7 @@ body {
     padding: $space-5;
     overflow: hidden;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.04)),
+      linear-gradient(180deg, $color-overlay-light-soft, $color-overlay-dark-soft),
       $color-game-bg;
   }
 }
@@ -235,7 +264,7 @@ body {
     justify-content: center;
     padding: calc(#{$space-3} * var(--board-scale));
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.08)),
+      linear-gradient(180deg, $color-overlay-light-vsoft, $color-overlay-dark-vsoft),
       linear-gradient(
         135deg,
         $color-field-light 25%,
@@ -271,9 +300,9 @@ body {
   position: relative;
   aspect-ratio: 1 / 1;
   width: 100%;
-  border: 1px solid #000; 
+  border: 1px solid $color-black-pure; 
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.1), rgba(0,0,0,0.08)),
+    linear-gradient(180deg, $color-overlay-light-tile, $color-overlay-dark-vsoft),
     url('../../assets/images/grass_texture.png') repeat;
   background-size: 256px 256px;
   image-rendering: pixelated;
@@ -282,28 +311,24 @@ body {
   &--light { filter: brightness(1.1); }
   &--dark { filter: brightness(0.85); }
 
-  &--can-place {
-    &::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(255, 193, 7, 0.3);
-      border: 2px dashed #ffc107;
-      z-index: 5;
-      pointer-events: none;
-    }
+  &.can-place::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: $color-placement-bg;
+    border: 2px dashed $color-placement-ok;
+    z-index: 5;
+    pointer-events: none;
   }
 
-  &--highlight {
+  &.highlight::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border: 2px solid $color-tile-highlight;
+    background-color: $color-tile-high-bg;
+    pointer-events: none;
     z-index: 50;
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 1px;
-      border: 2px solid #FFEB3B;
-      background-color: rgba(255, 235, 59, 0.1);
-      pointer-events: none;
-    }
   }
 }
 
@@ -369,7 +394,7 @@ body {
   transition: transform 0.1s linear;
   
   &--boss {
-    filter: drop-shadow(0 4px 0 rgba(0,0,0,0.5));
+    filter: drop-shadow(0 4px 0 $shadow-inset-dark);
   }
 }
 
@@ -383,7 +408,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.18);
+  box-shadow: 0 10px 0 $shadow-standard;
 
   &--overlay {
     position: absolute;
@@ -392,7 +417,7 @@ body {
     z-index: 200; 
     width: min(420px, calc(100% - (#{$space-5} * 2)));
     margin: 0;
-    background: rgba(245, 222, 179, 0.96);
+    background: $color-overlay-bg;
     backdrop-filter: blur(2px);
     transform: translate(-50%, -50%);
   }
@@ -418,26 +443,26 @@ body {
     font-size: 18px;
     font-weight: bold;
     background: $start-button-color;
-    color: #ffffff;
+    color: $color-white-pure;
     border: none;
-    cursor: pointer;
+    font-family: inherit;
 
     &:hover {
       background: $primary-color;
-      box-shadow: 0 4px 8px rgba(28, 155, 85, 0.4);
+      box-shadow: 0 4px 8px #1c9b5566; 
       transform: translateY(-5px);
     }
 
     &:active {
       transform: translateY(4px);
-      box-shadow: 0 2px 0 #2eeb6d;
+      box-shadow: 0 2px 0 $color-btn-active;
     }
 
     &--sub {
       margin-top: 10px;
       padding: 10px 30px;
       font-size: 1.2rem;
-      background: #3498db;
+      background: $color-btn-sub-bg;
     }
   }
 }
@@ -461,15 +486,15 @@ body {
       width: 100%;
       height: 12px;
       cursor: pointer;
-      background: #000;
+      background: $color-black-pure;
       border: 2px solid $border-color;
     }
     
     &::-webkit-slider-thumb {
       height: 24px;
       width: 14px;
-      background: #2ecc71;
-      border: 2px solid #000;
+      background: $color-slider-thumb;
+      border: 2px solid $color-black-pure;
       cursor: pointer;
       -webkit-appearance: none;
       margin-top: -8px;
@@ -479,9 +504,9 @@ body {
 
 /* ========================= ANIMATIONS ========================= */
 @keyframes pulse-danger {
-  0% { box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18); }
-  50% { box-shadow: 0 6px 20px rgba(192, 57, 43, 0.6); }
-  100% { box-shadow: 0 6px 0 rgba(0, 0, 0, 0.18); }
+  0% { box-shadow: 0 6px 0 $shadow-standard; }
+  50% { box-shadow: 0 6px 20px $color-danger-pulse; }
+  100% { box-shadow: 0 6px 0 $shadow-standard; }
 }
 
 /* ========================= ROOT VARIABLES ========================= */

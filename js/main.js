@@ -1,75 +1,3 @@
-// ------------------------- Konfiguracja gry -------------------------
-const GAME_CONFIG = {
-    rows: 5,
-    columns: 10,
-    tileClassNames: ['game-tile--light', 'game-tile--dark'],
-    baseGrassCount: 6,
-    baseStoneCount: 4,
-    spawnIntervals: {
-        grass: 15000, 
-        stone: 25000  
-    },
-    treeGrowthTime: 15000, 
-    hpValues: { 
-        tree: 5, 
-        cannon: 10, 
-        woodFence: 8, 
-        stoneWall: 15, 
-        worm: 10,
-        worm_boss: 30 
-    },
-    waves: {
-        1: { normal: 5, boss: 0 },
-        2: { normal: 10, boss: 0 },
-        3: { normal: 15, boss: 1 },
-        4: { normal: 20, boss: 2 },
-        5: { normal: 25, boss: 3 },
-        6: { normal: 30, boss: 5 },
-        7: { normal: 35, boss: 7 },
-        8: { normal: 40, boss: 10 },
-        9: { normal: 45, boss: 15 },
-        10: { normal: 50, boss: 20 }
-    },
-    enemySpeed: 0.2,
-    bossSpeed: 0.15,
-    projectileSpeed: 4, 
-    cannonDamage: 3      
-};
-
-const gameState = {
-    level: 1, 
-    seedCount: 0, 
-    stoneCount: 0, 
-    woodCount: 0,
-    prepTime: 900, 
-    gamePaused: true, 
-    selectedItemToPlace: null,
-    isInvasionActive: false,
-    enemiesDefeated: 0,
-    totalEnemiesInWave: 0,
-    activeEnemies: [],
-    activeProjectiles: [], 
-    volume: parseInt(localStorage.getItem('gameVolume')) || 50
-};
-
-const shopItems = {
-    cannon: { wood: 15, stone: 10 }, 
-    seedling: { seeds: 1 },
-    woodFence: { wood: 10 },
-    stoneWall: { stone: 12 }
-};
-
-const itemImages = {
-    cannon: 'assets/images/cannon.png',
-    seedling: 'assets/images/seedling.png',
-    tree: 'assets/images/tree.png',
-    woodFence: 'assets/images/woodFence.png',
-    stoneWall: 'assets/images/stoneWall.png',
-    worm_full: 'assets/images/worm_full.png',
-    worm_boss: 'assets/images/worm_boss.png',
-    cannonball: 'assets/images/cannonball.png' 
-};
-
 // ------------------------- System Menu i Pauzy -------------------------
 
 function togglePause() {
@@ -80,13 +8,11 @@ function togglePause() {
     
     if (gameState.gamePaused) {
         menu.classList.remove('is-hidden');
-        // WYSOKI Z-INDEX DLA MENU (wyższy niż kule)
         menu.style.zIndex = "10000000"; 
         
         const startBtn = document.getElementById('startGameButton');
         if (startBtn) startBtn.textContent = "WZNÓW GRĘ";
         
-        // Zapewnienie, że kontrolki w menu też są na wierzchu
         const controls = menu.querySelectorAll('button, input, select');
         controls.forEach(c => c.style.zIndex = "10000001");
         
@@ -157,7 +83,9 @@ function placeSelectedItemOnTile(tile) {
     if (item === 'seedling') {
         tile.dataset.isGrowing = 'true';
         tile.dataset.hp = "2";
-        setTimeout(() => growToTree(tile), GAME_CONFIG.treeGrowthTime);
+        tile.dataset.growthStart = Date.now();
+        tile.dataset.growthDuration = GAME_CONFIG.treeGrowthTime;
+        tile.dataset.pausedTime = "0";
     } else {
         if (item === 'cannon') {
             tile.dataset.hasCannon = 'true';
@@ -168,6 +96,21 @@ function placeSelectedItemOnTile(tile) {
     }
 
     updateResourcesUI();
+}
+
+// NOWA FUNKCJA: Kontrola wzrostu drzew
+function updateTreeGrowth() {
+    if (gameState.gamePaused) return;
+
+    document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
+        const growthStart = parseInt(tile.dataset.growthStart);
+        const duration = parseInt(tile.dataset.growthDuration);
+        const now = Date.now();
+
+        if (now - growthStart >= duration) {
+            growToTree(tile);
+        }
+    });
 }
 
 function growToTree(tile) {
@@ -255,6 +198,11 @@ function startPrepTimer() {
             } else {
                 handleInvasionStart();
             }
+            // Aktualizujemy czas startu rosnących drzew o sekundę, aby pauza "przesuwała" moment wzrostu
+        } else if (gameState.gamePaused) {
+            document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
+                tile.dataset.growthStart = parseInt(tile.dataset.growthStart) + 1000;
+            });
         }
     }, 1000);
 }
@@ -299,7 +247,8 @@ function spawnEnemy(row, type) {
     if (!targetTile) return;
 
     const enemyEl = document.createElement('div');
-    enemyEl.className = `enemy-worm ${type === 'boss' ? 'enemy-worm--boss' : ''}`;
+    // DODANO KLASĘ boardCursor DLA POTWORKÓW
+    enemyEl.className = `enemy-worm boardCursor ${type === 'boss' ? 'enemy-worm--boss' : ''}`;
     
     const size = type === 'boss' ? 160 : 120;
     const img = type === 'boss' ? itemImages.worm_boss : itemImages.worm_full;
@@ -323,7 +272,20 @@ function spawnEnemy(row, type) {
         type: type 
     };
 
+    // OBSŁUGA KURZORA USED PRZY KLIKNIĘCIU
+    enemyEl.onmousedown = (e) => {
+        e.stopPropagation();
+        enemyEl.classList.add('used_boardCursor');
+    };
+    enemyEl.onmouseup = (e) => {
+        e.stopPropagation();
+        enemyEl.classList.remove('used_boardCursor');
+    };
+    // Dodatkowo na wyjście myszki poza element, by nie został zablokowany kursor kliknięty
+    enemyEl.onmouseleave = () => enemyEl.classList.remove('used_boardCursor');
+
     enemyEl.onclick = (e) => { e.stopPropagation(); damageEnemy(enemyObj, 2); };
+    
     gameState.activeEnemies.push(enemyObj);
 }
 
@@ -382,7 +344,6 @@ function fireCannon(tile, row) {
     const projEl = document.createElement('div');
     projEl.className = 'cannonball';
     
-    // Kula ma z-index 9999999
     projEl.style.cssText = `
         width: 45px; 
         height: 45px; 
@@ -446,54 +407,56 @@ function clearProjectiles() {
 }
 
 function updateGameLoop() {
-    if (gameState.gamePaused || !gameState.isInvasionActive) return;
+    if (gameState.gamePaused) return;
 
-    gameState.activeEnemies.forEach(enemy => {
-        if (enemy.isAttacking) return;
-        const speed = enemy.type === 'boss' ? GAME_CONFIG.enemySpeed * 0.8 : GAME_CONFIG.enemySpeed;
-        enemy.offsetX += speed;
-        enemy.element.style.transform = `translate(-50%, -50%) translateX(-${enemy.offsetX}px)`;
+    if (gameState.isInvasionActive) {
+        gameState.activeEnemies.forEach(enemy => {
+            if (enemy.isAttacking) return;
+            const speed = enemy.type === 'boss' ? GAME_CONFIG.enemySpeed * 0.8 : GAME_CONFIG.enemySpeed;
+            enemy.offsetX += speed;
+            enemy.element.style.transform = `translate(-50%, -50%) translateX(-${enemy.offsetX}px)`;
 
-        const colShift = Math.floor((enemy.offsetX + 55) / enemy.element.parentElement.offsetWidth);
-        const newCol = 9 - colShift;
+            const colShift = Math.floor((enemy.offsetX + 55) / enemy.element.parentElement.offsetWidth);
+            const newCol = 9 - colShift;
 
-        if (newCol < 0) {
-            gameOver();
-            return;
-        }
-
-        if (newCol !== enemy.currentCol) {
-            const tiles = document.querySelectorAll('.game-tile');
-            const targetTile = tiles[(enemy.row * 10) + newCol];
-            if (targetTile && isTileOccupied(targetTile)) {
-                enemy.isAttacking = true;
-                const attackInterval = enemy.type === 'boss' ? 2500 : 1200; 
-                const attackDamage = enemy.type === 'boss' ? 2.5 : 1; 
-
-                const attackInt = setInterval(() => {
-                    if (gameState.gamePaused || !gameState.activeEnemies.includes(enemy)) { clearInterval(attackInt); return; }
-                    let hp = parseFloat(targetTile.dataset.hp) || 0;
-                    if (hp > 0) {
-                        hp -= attackDamage;
-                        targetTile.dataset.hp = hp;
-                        targetTile.style.opacity = "0.7";
-                        setTimeout(() => targetTile.style.opacity = "1", 100);
-                    }
-                    if (hp <= 0) {
-                        targetTile.innerHTML = '';
-                        clearTileData(targetTile);
-                        enemy.isAttacking = false;
-                        clearInterval(attackInt);
-                    }
-                }, attackInterval);
+            if (newCol < 0) {
+                gameOver();
+                return;
             }
-            enemy.currentCol = newCol;
-        }
-    });
 
-    updateCannons();
-    updateProjectiles();
+            if (newCol !== enemy.currentCol) {
+                const tiles = document.querySelectorAll('.game-tile');
+                const targetTile = tiles[(enemy.row * 10) + newCol];
+                if (targetTile && isTileOccupied(targetTile)) {
+                    enemy.isAttacking = true;
+                    const attackInterval = enemy.type === 'boss' ? 2500 : 1200; 
+                    const attackDamage = enemy.type === 'boss' ? 2.5 : 1; 
 
+                    const attackInt = setInterval(() => {
+                        if (gameState.gamePaused || !gameState.activeEnemies.includes(enemy)) { clearInterval(attackInt); return; }
+                        let hp = parseFloat(targetTile.dataset.hp) || 0;
+                        if (hp > 0) {
+                            hp -= attackDamage;
+                            targetTile.dataset.hp = hp;
+                            targetTile.style.opacity = "0.7";
+                            setTimeout(() => targetTile.style.opacity = "1", 100);
+                        }
+                        if (hp <= 0) {
+                            targetTile.innerHTML = '';
+                            clearTileData(targetTile);
+                            enemy.isAttacking = false;
+                            clearInterval(attackInt);
+                        }
+                    }, attackInterval);
+                }
+                enemy.currentCol = newCol;
+            }
+        });
+        updateCannons();
+        updateProjectiles();
+    }
+
+    updateTreeGrowth(); // STAŁA KONTROLA WZROSTU
     requestAnimationFrame(updateGameLoop);
 }
 
@@ -610,7 +573,6 @@ function gameWin() {
 
 function showEndScreen(title, text, color, btnText) {
     const overlay = document.createElement('div');
-    // EKRAN KOŃCOWY TEŻ MUSI MIEĆ NAJWYŻSZY Z-INDEX
     overlay.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 0, 0, 0.9); z-index: 20000000;
@@ -634,6 +596,19 @@ function showEndScreen(title, text, color, btnText) {
 // ------------------------- Inicjalizacja i Eventy -------------------------
 
 function setupInteraction() {
+    // WSTRZYKNIĘCIE STYLI CSS DLA KURSORÓW DO HTML
+    const style = document.createElement('style');
+    style.innerHTML = `
+        body, .mainCursor { cursor: url('../assets/images/mainCursor.png'), auto !important; }
+        .boardCursor { cursor: url('../assets/images/boardCursor.png'), pointer !important; }
+        .used_boardCursor { cursor: url('../assets/images/used_boardCursor.png'), pointer !important; }
+        button, .game-tile, #gameGrid { cursor: url('../assets/images/mainCursor.png'), auto; }
+    `;
+    document.head.appendChild(style);
+
+    // USTAW KURZOR DOMYŚLNY DLA BODY
+    document.body.classList.add('mainCursor');
+
     const grid = document.getElementById("gameGrid");
     if (grid) {
         grid.onclick = handleGridClick;
@@ -644,6 +619,12 @@ function setupInteraction() {
     Object.keys(shopItems).forEach(item => {
         const btn = document.getElementById(`${item}Button`);
         if (btn) {
+            // DODANIE ZDJĘCIA DO PRZYCISKU SKLEPU
+            const img = document.createElement('img');
+            img.src = itemImages[item];
+            img.style.cssText = "width: 30px; height: 30px; vertical-align: middle; margin-right: 10px;";
+            btn.prepend(img);
+
             btn.setAttribute('draggable', 'true');
             btn.ondragstart = handleDragStart;
         }

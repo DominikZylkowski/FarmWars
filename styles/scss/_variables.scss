@@ -1,49 +1,88 @@
-// KOLORY PODSTAWOWE
-$bg-color: #f4f6fb;          
-$text-color: #000000;         
-$color-text-dark: #2c1b12;    
+/* ==========================================================================
+   VARIABLES.SCSS
+   ========================================================================== */
 
-// TOPBAR
-$topbar-text-color: #e4d5d5;  
-$color-topbar-bg: #3d2a1e;    
-$color-topbar-border: #5a4a3e; 
-$layout-topbar-height: 88px;  
+// --- KOLORY PODSTAWOWE & TEKST ---
+$bg-color:           #f4f6fb;
+$text-color:         #000000;
+$color-text-dark:    #2c1b12;
+$color-white-pure:   #ffffff;
+$color-black-pure:   #000000;
 
-// PLANSZA GRY
-$color-game-bg: #5d9d4d;
-$color-field-border: #5a7d35;
-$color-grid-outline: #47692c;
-$color-field-light: #79b85a;
-$color-field-dark: #6aa14e;
-$house-slot-width: 220px;
-$tile-min-height: 96px;
+// --- TOPBAR & STATUS ---
+$color-topbar-bg:      #3d2a1e;
+$color-topbar-border:  #5a4a3e;
+$topbar-text-color:    #e4d5d5;
+$color-status-bg:      #2b1d12;
+$color-status-border:  #1a120b;
+$color-accent-gold:    #ffd700;
+$color-status-sep:     #4d4100; // Przybliżony HEX z rgba(255, 215, 0, 0.3)
 
-// PANEL / MENU
-$panel-color: #f5deb3;
-$border-color: #8e6847;
-$color-panel-fill: #f1ddb8;
-$color-panel-border: #6d472b;
+// --- INWAZJA / ZAGROŻENIE (DANGER) ---
+$color-danger-bg:      #c0392b;
+$color-danger-border:  #96281b;
+$color-danger-pulse:   #c0392b; // Kolor poświaty animacji
 
-// PRZYCISK START / AKCENTY
-$start-button-color: #11971c;
-$primary-color: #11971c;
-$color-accent-dark: #4e7d35;  
+// --- PLANSZA GRY & KAFELKI ---
+$color-game-bg:        #5d9d4d;
+$color-field-border:   #5a7d35;
+$color-grid-outline:   #47692c;
+$color-field-light:    #79b85a;
+$color-field-dark:     #6aa14e;
+$color-tile-highlight: #ffeb3b;
+$color-tile-high-bg:   #423d0f; // Przybliżony HEX z rgba(255, 235, 59, 0.1)
+$color-placement-ok:   #ffc107;
+$color-placement-bg:   #4d3a02; // Przybliżony HEX z rgba(255, 193, 7, 0.3)
 
-// SPACJE / MARGINESY
+// --- PANEL / MENU / SKLEP ---
+$panel-color:          #f5deb3;
+$border-color:         #8e6847;
+$color-panel-fill:     #f1ddb8;
+$color-panel-border:   #6d472b;
+$color-overlay-bg:     #f5deb3; // Wheat
+$color-cost-red:       #ff4d4d;
+
+// --- PRZYCISKI & AKCJE ---
+$start-button-color:   #11971c;
+$primary-color:        #11971c;
+$color-btn-menu-bg:    #119922;
+$color-btn-menu-brdr:  #0f8820;
+$color-btn-sub-bg:     #3498db;
+$color-btn-active:     #2eeb6d;
+$color-slider-thumb:   #2ecc71;
+$color-accent-dark:    #4e7d35;
+
+// --- CIENIE (SHADOWS) ---
+$shadow-standard:      #0000002e;
+$shadow-inset-dark:    #00000080; 
+$shadow-inset-light:   #0000001f; 
+
+// --- NAKŁADKI I WARSTWY (OVERLAYS) ---
+$color-overlay-light-soft:  rgba(255, 255, 255, 0.18); // #ffffff2e
+$color-overlay-light-vsoft: rgba(255, 255, 255, 0.14); // #ffffff24
+$color-overlay-light-tile:  rgba(255, 255, 255, 0.10); // #ffffff1a
+$color-overlay-dark-soft:   rgba(0, 0, 0, 0.04);       // #0000000a
+$color-overlay-dark-vsoft:  rgba(0, 0, 0, 0.08);       // #00000014
+
+// --- WYMIARY & LAYOUT ---
+$layout-topbar-height: 88px;
+$house-slot-width:     220px;
+$tile-min-height:      96px;
+$house-slot-width-base: 220px;
+$house-size-base:      300px;
+$tile-min-height-base: 96px;
+
+// --- ODSTĘPY (SPACING) ---
 $space-1: 4px;
 $space-2: 8px;
 $space-3: 12px;
 $space-4: 16px;
 $space-5: 20px;
 
-// SKALOWANIE PLANSZY
-$board-scale-desktop: 1;
-$board-scale-tablet: 0.78;
-$board-scale-mobile: 0.58;
+// --- RESPONSYWNOŚĆ & SKALOWANIE ---
+$board-scale-desktop:  1;
+$board-scale-tablet:   0.78;
+$board-scale-mobile:   0.58;
 
-$house-slot-width-base: 220px;
-$house-size-base: 300px;
-$tile-min-height-base: 96px;
-
-$breakpoint-tablet: 1024px;
-$breakpoint-mobile: 768px;
+$breakpoint-tablet:    1024px;
+$breakpoint-mobile:    768px;
