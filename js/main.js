@@ -1,29 +1,46 @@
 // ------------------------- System Menu i Pauzy -------------------------
-
 function togglePause() {
     const menu = document.getElementById('gameMenu');
     if (!menu) return;
-    
+
     gameState.gamePaused = !gameState.gamePaused;
-    
+
     if (gameState.gamePaused) {
         menu.classList.remove('is-hidden');
-        menu.style.zIndex = "10000000"; 
-        
+        menu.style.zIndex = "10000000";
+
         const startBtn = document.getElementById('startGameButton');
         if (startBtn) startBtn.textContent = "WZNÓW GRĘ";
-        
+
         const controls = menu.querySelectorAll('button, input, select');
         controls.forEach(c => c.style.zIndex = "10000001");
-        
+
+        // Zatrzymanie czasu dla drzew w trakcie pauzy
+        document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
+            tile.dataset.pausedTime = "0";
+        });
+
     } else {
         menu.classList.add('is-hidden');
-        if (gameState.isInvasionActive) requestAnimationFrame(updateGameLoop);
+
+        // Reset czasu klatki, aby uniknąć "skoków" po pauzie
+        lastFrameTime = Date.now();
+
+        // Wznów pętlę animacji inwazji
+        if (gameState.isInvasionActive) {
+            requestAnimationFrame(updateGameLoop);
+        }
+
+        // Wznów wzrost drzew, uwzględniając czas pauzy
+        document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
+            const pausedTime = parseInt(tile.dataset.pausedTime || "0");
+            tile.dataset.growthStart = parseInt(tile.dataset.growthStart) + pausedTime;
+            tile.dataset.pausedTime = "0";
+        });
     }
 }
 
 // ------------------------- System Przeciągania (Drag & Drop) -------------------------
-
 function handleDragStart(e) {
     const itemId = e.target.id.replace('Button', '');
     if (!canAfford(itemId) || gameState.gamePaused) {
@@ -90,12 +107,48 @@ function placeSelectedItemOnTile(tile) {
         if (item === 'cannon') {
             tile.dataset.hasCannon = 'true';
             tile.dataset.lastShot = "0"; 
-        }
-        else tile.dataset.hasFence = 'true';
+        } else tile.dataset.hasFence = 'true';
         tile.dataset.hp = GAME_CONFIG.hpValues[item] || 10;
     }
 
     updateResourcesUI();
+}
+
+// ------------------------- Damage (Poprawione o blokadę pauzy) -------------------------
+function damageEnemy(enemy, amount) {
+    // Blokada zadawania obrażeń podczas pauzy
+    if (gameState.gamePaused) return;
+
+    enemy.hp -= amount;
+
+    const hpPercent = (enemy.hp / enemy.maxHp) * 100;
+    const hpBarFill = enemy.element.firstChild;
+
+    if (hpBarFill) {
+        hpBarFill.style.width = `${hpPercent}%`;
+        if (hpPercent > 60) {
+            hpBarFill.style.background = GAME_CONFIG.hpColors.high;
+        } else if (hpPercent > 30) {
+            hpBarFill.style.background = GAME_CONFIG.hpColors.medium;
+        } else {
+            hpBarFill.style.background = GAME_CONFIG.hpColors.low;
+        }
+    }
+
+    if (enemy.hp <= 0) {
+        enemy.element.remove();
+        gameState.activeEnemies = gameState.activeEnemies.filter(e => e !== enemy);
+        gameState.enemiesDefeated++;
+
+        updateTimerUI();
+
+        if (
+            gameState.enemiesDefeated >= gameState.totalEnemiesInWave &&
+            gameState.activeEnemies.length === 0
+        ) {
+            handleLevelComplete();
+        }
+    }
 }
 
 // NOWA FUNKCJA: Kontrola wzrostu drzew
@@ -120,7 +173,6 @@ function growToTree(tile) {
         tree.className = `game-tile__placed-item game-tile__item--tree`;
         tree.style.backgroundImage = `url('${itemImages.tree}')`;
         tile.appendChild(tree);
-        // POPRAWKA: isGrowing musi być false, żeby przestało sprawdzać czas
         tile.dataset.isGrowing = 'false'; 
         tile.dataset.hasTree = 'true';
         tile.dataset.hp = GAME_CONFIG.hpValues.tree;
@@ -128,7 +180,6 @@ function growToTree(tile) {
 }
 
 // ------------------------- Zasoby i Timer -------------------------
-
 function getRandomResourceSize() {
     const rand = Math.random();
     if (rand < 0.5) return 1;
@@ -160,12 +211,8 @@ function spawnRandomResource(type) {
 }
 
 function spawnInitialResources() {
-    for (let i = 0; i < GAME_CONFIG.baseGrassCount; i++) {
-        spawnRandomResource('grass');
-    }
-    for (let i = 0; i < GAME_CONFIG.baseStoneCount; i++) {
-        spawnRandomResource('stone');
-    }
+    for (let i = 0; i < GAME_CONFIG.baseGrassCount; i++) spawnRandomResource('grass');
+    for (let i = 0; i < GAME_CONFIG.baseStoneCount; i++) spawnRandomResource('stone');
 }
 
 function isTileOccupied(tile) {
@@ -193,20 +240,14 @@ function updateTimerUI() {
 function startPrepTimer() {
     setInterval(() => {
         if (!gameState.gamePaused) {
-            // Logika przygotowań
             if (!gameState.isInvasionActive) {
                 if (gameState.prepTime > 0) {
                     gameState.prepTime--;
                     updateTimerUI();
-                } else {
-                    handleInvasionStart();
-                }
+                } else handleInvasionStart();
             }
-            
-            // POPRAWKA: updateTreeGrowth musi być wywoływane tutaj, żeby drzewa rosły zawsze
             updateTreeGrowth();
-
-        } else if (gameState.gamePaused) {
+        } else {
             document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
                 tile.dataset.growthStart = parseInt(tile.dataset.growthStart) + 1000;
             });
@@ -215,7 +256,6 @@ function startPrepTimer() {
 }
 
 // ------------------------- UI i Interakcja -------------------------
-
 function handleGridClick(event) {
     if (gameState.gamePaused) return;
     const tile = event.target.closest('.game-tile');
@@ -267,10 +307,7 @@ function updateCostPanel() {
 function updateMaxCraftUI() {
     Object.keys(shopItems).forEach(item => {
         const display = document.getElementById(`${item}Max`);
-        if (display) {
-            const max = calculateMaxCraft(item);
-            display.textContent = `max: ${max}`;
-        }
+        if (display) display.textContent = `max: ${calculateMaxCraft(item)}`;
     });
 }
 
@@ -315,7 +352,6 @@ function showEndScreen(title, text, color, btnText) {
         display: flex; flex-direction: column; justify-content: center;
         align-items: center; color: white; text-align: center; font-family: sans-serif;
     `;
-
     overlay.innerHTML = `
         <h1 style="color: ${color}; font-size: 4rem; margin-bottom: 20px;">${title}</h1>
         <p style="font-size: 1.5rem; margin-bottom: 40px;">${text}</p>
@@ -324,13 +360,11 @@ function showEndScreen(title, text, color, btnText) {
         </div>
         <button id="restartBtn" style="background: ${color}; color: white; border: none; padding: 15px 40px; font-size: 1.2rem; cursor: pointer; border-radius: 5px; font-weight: bold;">${btnText}</button>
     `;
-
     document.body.appendChild(overlay);
     document.getElementById('restartBtn').onclick = () => location.reload();
 }
 
 // ------------------------- Inicjalizacja i Eventy -------------------------
-
 function setupInteraction() {
     const style = document.createElement('style');
     style.innerHTML = `
@@ -369,8 +403,11 @@ function setupInteraction() {
     const startBtn = document.getElementById('startGameButton');
     if (startBtn) startBtn.onclick = togglePause;
 
-    window.onkeydown = (e) => { if (e.key === "Escape") togglePause(); };
-    
+    // Obsługa klawisza ESC
+    window.onkeydown = (e) => { 
+        if (e.key === "Escape") togglePause(); 
+    };
+
     const volSlider = document.getElementById('volumeRange');
     if (volSlider) {
         volSlider.oninput = (e) => {
@@ -399,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateResourcesUI();
     updateTimerUI();
     startPrepTimer();
-    
+
     setInterval(() => { if(!gameState.gamePaused && !gameState.isInvasionActive) spawnRandomResource('grass') }, 15000);
     setInterval(() => { if(!gameState.gamePaused && !gameState.isInvasionActive) spawnRandomResource('stone') }, 25000);
 });

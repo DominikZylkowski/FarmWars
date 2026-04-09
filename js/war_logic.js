@@ -1,9 +1,13 @@
 // ------------------------- Inwazja i Walka -------------------------
 
+// Zmienna do obsługi płynnego czasu (powinna być zadeklarowana globalnie)
+let lastFrameTime = Date.now();
+
 function handleInvasionStart() {
     // Reset stanu najazdu
     gameState.isInvasionActive = true;
     gameState.enemiesDefeated = 0;
+    lastFrameTime = Date.now(); // Reset czasu przy starcie inwazji
 
     // Pobranie aktualnej fali (fallback na 10 poziom)
     const currentWave = GAME_CONFIG.waves[gameState.level] || GAME_CONFIG.waves[10];
@@ -131,7 +135,7 @@ function damageEnemy(enemy, amount) {
 
     hpBarFill.style.width = `${hpPercent}%`;
 
-        if (hpPercent > 60) {
+    if (hpPercent > 60) {
         hpBarFill.style.background = GAME_CONFIG.hpColors.high;
     } else if (hpPercent > 30) {
         hpBarFill.style.background = GAME_CONFIG.hpColors.medium;
@@ -261,17 +265,36 @@ function clearProjectiles() {
 // ------------------------- Game Loop -------------------------
 
 function updateGameLoop() {
-    if (gameState.gamePaused) return;
+    const now = Date.now();
+    let delta = (now - lastFrameTime) / 1000;
+    lastFrameTime = now;
+
+    // Zabezpieczenie przed teleportacją (maksymalna delta 0.1s)
+    if (delta > 0.1) delta = 0.1;
+
+    if (gameState.gamePaused) {
+        requestAnimationFrame(updateGameLoop);
+        return;
+    }
 
     if (gameState.isInvasionActive) {
+        const tiles = document.querySelectorAll('.game-tile');
+
         gameState.activeEnemies.forEach(enemy => {
+            // Reset ataku jeśli tile jest wolny
+            const targetTile = tiles[(enemy.row * 10) + enemy.currentCol];
+            if (enemy.isAttacking && targetTile && !isTileOccupied(targetTile)) {
+                enemy.isAttacking = false;
+            }
+
             if (enemy.isAttacking) return;
 
-            const speed = enemy.type === 'boss'
+            const speed = (enemy.type === 'boss'
                 ? GAME_CONFIG.enemySpeed * 0.8
-                : GAME_CONFIG.enemySpeed;
+                : GAME_CONFIG.enemySpeed);
 
-            enemy.offsetX += speed;
+            // Przeliczenie ruchu względem deltaTime
+            enemy.offsetX += speed * delta * 60;
 
             enemy.element.style.transform =
                 `translate(-50%, -50%) translateX(-${enemy.offsetX}px)`;
@@ -288,10 +311,9 @@ function updateGameLoop() {
             }
 
             if (newCol !== enemy.currentCol) {
-                const tiles = document.querySelectorAll('.game-tile');
-                const targetTile = tiles[(enemy.row * 10) + newCol];
+                const nextTile = tiles[(enemy.row * 10) + newCol];
 
-                if (targetTile && isTileOccupied(targetTile)) {
+                if (nextTile && isTileOccupied(nextTile)) {
                     enemy.isAttacking = true;
 
                     const attackInterval = enemy.type === 'boss' ? 2500 : 1200;
@@ -303,22 +325,23 @@ function updateGameLoop() {
                             !gameState.activeEnemies.includes(enemy)
                         ) {
                             clearInterval(attackInt);
+                            enemy.isAttacking = false;
                             return;
                         }
 
-                        let hp = parseFloat(targetTile.dataset.hp) || 0;
+                        let hp = parseFloat(nextTile.dataset.hp) || 0;
 
                         if (hp > 0) {
                             hp -= attackDamage;
-                            targetTile.dataset.hp = hp;
+                            nextTile.dataset.hp = hp;
 
-                            targetTile.style.opacity = "0.7";
-                            setTimeout(() => targetTile.style.opacity = "1", 100);
+                            nextTile.style.opacity = "0.7";
+                            setTimeout(() => nextTile.style.opacity = "1", 100);
                         }
 
                         if (hp <= 0) {
-                            targetTile.innerHTML = '';
-                            clearTileData(targetTile);
+                            nextTile.innerHTML = '';
+                            clearTileData(nextTile);
 
                             enemy.isAttacking = false;
                             clearInterval(attackInt);
@@ -352,11 +375,19 @@ function handleLevelComplete() {
     } else {
         gameState.level++;
 
-        gameState.prepTime = 300;
+        gameState.prepTime = 60;
 
         document.querySelector('.topBar')?.classList.remove('is-invasion');
 
         updateTimerUI();
         updateShopButtons();
     }
+}
+
+// ------------------------- Helpers -------------------------
+
+function isTileOccupied(tile) {
+    // Tolerancyjna kolizja: ignoruj elementy dekoracyjne
+    const children = Array.from(tile.children);
+    return children.some(c => c.classList.contains('enemy-worm') || c.classList.contains('game-tile__item--cannon'));
 }
