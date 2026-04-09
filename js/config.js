@@ -41,7 +41,7 @@ const gameState = {
     seedCount: 0, 
     stoneCount: 0, 
     woodCount: 0,
-    prepTime: 900, 
+    prepTime: 30, 
     gamePaused: true, 
     selectedItemToPlace: null,
     isInvasionActive: false,
@@ -53,10 +53,16 @@ const gameState = {
 };
 
 const shopItems = {
-    cannon: { wood: 2, stone: 1 }, 
+    cannon: { wood: 20, stone: 15 }, 
     seedling: { seeds: 1 },
     woodFence: { wood: 10 },
     stoneWall: { stone: 12 }
+};
+
+GAME_CONFIG.hpColors = {
+    high: '#2ecc71',   
+    medium: '#f1c40f', 
+    low: '#e74c3c'    
 };
 
 const itemImages = {

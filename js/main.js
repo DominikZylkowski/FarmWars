@@ -120,7 +120,8 @@ function growToTree(tile) {
         tree.className = `game-tile__placed-item game-tile__item--tree`;
         tree.style.backgroundImage = `url('${itemImages.tree}')`;
         tile.appendChild(tree);
-        tile.dataset.isGrowing = 'false';
+        // POPRAWKA: isGrowing musi być false, żeby przestało sprawdzać czas
+        tile.dataset.isGrowing = 'false'; 
         tile.dataset.hasTree = 'true';
         tile.dataset.hp = GAME_CONFIG.hpValues.tree;
     }
@@ -191,291 +192,26 @@ function updateTimerUI() {
 
 function startPrepTimer() {
     setInterval(() => {
-        if (!gameState.gamePaused && !gameState.isInvasionActive) {
-            if (gameState.prepTime > 0) {
-                gameState.prepTime--;
-                updateTimerUI();
-            } else {
-                handleInvasionStart();
+        if (!gameState.gamePaused) {
+            // Logika przygotowań
+            if (!gameState.isInvasionActive) {
+                if (gameState.prepTime > 0) {
+                    gameState.prepTime--;
+                    updateTimerUI();
+                } else {
+                    handleInvasionStart();
+                }
             }
-            // Aktualizujemy czas startu rosnących drzew o sekundę, aby pauza "przesuwała" moment wzrostu
+            
+            // POPRAWKA: updateTreeGrowth musi być wywoływane tutaj, żeby drzewa rosły zawsze
+            updateTreeGrowth();
+
         } else if (gameState.gamePaused) {
             document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
                 tile.dataset.growthStart = parseInt(tile.dataset.growthStart) + 1000;
             });
         }
     }, 1000);
-}
-
-// ------------------------- Inwazja i Walka -------------------------
-
-function handleInvasionStart() {
-    gameState.isInvasionActive = true;
-    gameState.enemiesDefeated = 0;
-    const currentWave = GAME_CONFIG.waves[gameState.level] || GAME_CONFIG.waves[10];
-    gameState.totalEnemiesInWave = currentWave.normal + currentWave.boss;
-    
-    document.querySelector('.topBar')?.classList.add('is-invasion');
-    const menuBtn = document.getElementById('menuGameButton');
-    if (menuBtn) menuBtn.style.color = 'black';
-
-    updateTimerUI();
-
-    let spawnQueue = [];
-    for(let i=0; i < currentWave.normal; i++) spawnQueue.push('normal');
-    for(let i=0; i < currentWave.boss; i++) spawnQueue.push('boss');
-    spawnQueue.sort(() => Math.random() - 0.5);
-
-    let spawned = 0;
-    const spawnIntervalTime = Math.max(500, 3000 - (gameState.level * 200));
-
-    const spawnTimer = setInterval(() => {
-        if (gameState.gamePaused) return; 
-        if (spawned < spawnQueue.length) {
-            const randomRow = Math.floor(Math.random() * 5);
-            spawnEnemy(randomRow, spawnQueue[spawned]);
-            spawned++;
-        } else { clearInterval(spawnTimer); }
-    }, spawnIntervalTime);
-
-    requestAnimationFrame(updateGameLoop);
-}
-
-function spawnEnemy(row, type) {
-    const tiles = document.querySelectorAll('.game-tile');
-    const targetTile = tiles[(row * 10) + 9];
-    if (!targetTile) return;
-
-    const enemyEl = document.createElement('div');
-    // DODANO KLASĘ boardCursor DLA POTWORKÓW
-    enemyEl.className = `enemy-worm boardCursor ${type === 'boss' ? 'enemy-worm--boss' : ''}`;
-    
-    const size = type === 'boss' ? 160 : 120;
-    const img = type === 'boss' ? itemImages.worm_boss : itemImages.worm_full;
-    const hpValue = type === 'boss' ? GAME_CONFIG.hpValues.worm_boss : GAME_CONFIG.hpValues.worm;
-
-    enemyEl.style.cssText = `width:${size}px; height:${size}px; position:absolute; z-index:1000; top:50%; left:50%; transform:translate(-50%, -50%); background:url('${img}') no-repeat center/contain; pointer-events: auto;`;
-    
-    const hpFill = document.createElement('div');
-    hpFill.style.cssText = `width:100%; height:8px; background:#2ecc71; position:absolute; top:-10px; border:2px solid black; transition: width 0.2s, background 0.2s;`;
-    enemyEl.appendChild(hpFill);
-    targetTile.appendChild(enemyEl);
-
-    const enemyObj = { 
-        element: enemyEl, 
-        hp: hpValue, 
-        maxHp: hpValue, 
-        offsetX: 0, 
-        row: row, 
-        currentCol: 9, 
-        isAttacking: false,
-        type: type 
-    };
-
-    // OBSŁUGA KURZORA USED PRZY KLIKNIĘCIU
-    enemyEl.onmousedown = (e) => {
-        e.stopPropagation();
-        enemyEl.classList.add('used_boardCursor');
-    };
-    enemyEl.onmouseup = (e) => {
-        e.stopPropagation();
-        enemyEl.classList.remove('used_boardCursor');
-    };
-    // Dodatkowo na wyjście myszki poza element, by nie został zablokowany kursor kliknięty
-    enemyEl.onmouseleave = () => enemyEl.classList.remove('used_boardCursor');
-
-    enemyEl.onclick = (e) => { e.stopPropagation(); damageEnemy(enemyObj, 2); };
-    
-    gameState.activeEnemies.push(enemyObj);
-}
-
-function damageEnemy(enemy, amount) {
-    enemy.hp -= amount;
-    const hpPercent = (enemy.hp / enemy.maxHp) * 100;
-    const hpBarFill = enemy.element.firstChild;
-    hpBarFill.style.width = `${hpPercent}%`;
-
-    if (hpPercent > 60) hpBarFill.style.background = '#2ecc71';
-    else if (hpPercent > 30) hpBarFill.style.background = '#f1c40f';
-    else hpBarFill.style.background = '#e74c3c';
-
-    if (enemy.hp <= 0) {
-        enemy.element.remove();
-        gameState.activeEnemies = gameState.activeEnemies.filter(e => e !== enemy);
-        gameState.enemiesDefeated++;
-        updateTimerUI();
-        if (gameState.enemiesDefeated >= gameState.totalEnemiesInWave && gameState.activeEnemies.length === 0) {
-            handleLevelComplete();
-        }
-    }
-}
-
-function updateCannons() {
-    const tiles = document.querySelectorAll('.game-tile');
-    tiles.forEach((tile, index) => {
-        if (tile.dataset.hasCannon === 'true') {
-            const row = Math.floor(index / 10);
-            const hasEnemiesInRow = gameState.activeEnemies.some(e => e.row === row);
-            
-            if (hasEnemiesInRow) {
-                const now = Date.now();
-                const lastShot = parseInt(tile.dataset.lastShot) || 0;
-                if (now - lastShot >= 1000) {
-                    tile.dataset.lastShot = now;
-                    fireCannon(tile, row);
-                }
-            }
-        }
-    });
-}
-
-function fireCannon(tile, row) {
-    const cannonEl = tile.querySelector('.game-tile__item--cannon');
-    if (cannonEl) {
-        cannonEl.classList.remove('is-shooting');
-        void cannonEl.offsetWidth; 
-        cannonEl.classList.add('is-shooting');
-    }
-
-    const rect = tile.getBoundingClientRect();
-    const startX = rect.left + rect.width / 2;
-    const startY = rect.top + rect.height / 2;
-
-    const projEl = document.createElement('div');
-    projEl.className = 'cannonball';
-    
-    projEl.style.cssText = `
-        width: 45px; 
-        height: 45px; 
-        position: fixed; 
-        z-index: 9999999; 
-        top: ${startY}px;
-        left: ${startX}px;
-        transform: translate(-50%, -50%);
-        background: url('${itemImages.cannonball}') no-repeat center/contain;
-        pointer-events: none;
-    `;
-    
-    document.body.appendChild(projEl);
-
-    gameState.activeProjectiles.push({
-        element: projEl,
-        currentX: startX,
-        currentY: startY,
-        xOffset: 0,
-        row: row
-    });
-}
-
-function updateProjectiles() {
-    for (let i = gameState.activeProjectiles.length - 1; i >= 0; i--) {
-        const p = gameState.activeProjectiles[i];
-        p.xOffset += GAME_CONFIG.projectileSpeed;
-        
-        const drawX = p.currentX + p.xOffset;
-        p.element.style.left = `${drawX}px`;
-        p.element.style.transform = `translate(-50%, -50%) rotate(${p.xOffset * 2}deg)`;
-
-        const pRect = p.element.getBoundingClientRect();
-        let hit = false;
-
-        const enemiesInRow = gameState.activeEnemies.filter(e => e.row === p.row);
-        for (let e of enemiesInRow) {
-            const eRect = e.element.getBoundingClientRect();
-            if (
-                pRect.right >= eRect.left + 20 &&
-                pRect.left <= eRect.right &&
-                pRect.bottom >= eRect.top &&
-                pRect.top <= eRect.bottom
-            ) {
-                damageEnemy(e, GAME_CONFIG.cannonDamage);
-                hit = true;
-                break;
-            }
-        }
-
-        if (hit || drawX > window.innerWidth) {
-            p.element.remove();
-            gameState.activeProjectiles.splice(i, 1);
-        }
-    }
-}
-
-function clearProjectiles() {
-    gameState.activeProjectiles.forEach(p => p.element.remove());
-    gameState.activeProjectiles = [];
-}
-
-function updateGameLoop() {
-    if (gameState.gamePaused) return;
-
-    if (gameState.isInvasionActive) {
-        gameState.activeEnemies.forEach(enemy => {
-            if (enemy.isAttacking) return;
-            const speed = enemy.type === 'boss' ? GAME_CONFIG.enemySpeed * 0.8 : GAME_CONFIG.enemySpeed;
-            enemy.offsetX += speed;
-            enemy.element.style.transform = `translate(-50%, -50%) translateX(-${enemy.offsetX}px)`;
-
-            const colShift = Math.floor((enemy.offsetX + 55) / enemy.element.parentElement.offsetWidth);
-            const newCol = 9 - colShift;
-
-            if (newCol < 0) {
-                gameOver();
-                return;
-            }
-
-            if (newCol !== enemy.currentCol) {
-                const tiles = document.querySelectorAll('.game-tile');
-                const targetTile = tiles[(enemy.row * 10) + newCol];
-                if (targetTile && isTileOccupied(targetTile)) {
-                    enemy.isAttacking = true;
-                    const attackInterval = enemy.type === 'boss' ? 2500 : 1200; 
-                    const attackDamage = enemy.type === 'boss' ? 2.5 : 1; 
-
-                    const attackInt = setInterval(() => {
-                        if (gameState.gamePaused || !gameState.activeEnemies.includes(enemy)) { clearInterval(attackInt); return; }
-                        let hp = parseFloat(targetTile.dataset.hp) || 0;
-                        if (hp > 0) {
-                            hp -= attackDamage;
-                            targetTile.dataset.hp = hp;
-                            targetTile.style.opacity = "0.7";
-                            setTimeout(() => targetTile.style.opacity = "1", 100);
-                        }
-                        if (hp <= 0) {
-                            targetTile.innerHTML = '';
-                            clearTileData(targetTile);
-                            enemy.isAttacking = false;
-                            clearInterval(attackInt);
-                        }
-                    }, attackInterval);
-                }
-                enemy.currentCol = newCol;
-            }
-        });
-        updateCannons();
-        updateProjectiles();
-    }
-
-    updateTreeGrowth(); // STAŁA KONTROLA WZROSTU
-    requestAnimationFrame(updateGameLoop);
-}
-
-function handleLevelComplete() {
-    gameState.isInvasionActive = false;
-    clearProjectiles(); 
-    
-    const menuBtn = document.getElementById('menuGameButton');
-    if (menuBtn) menuBtn.style.color = '';
-
-    if (gameState.level >= 10) {
-        gameWin();
-    } else {
-        gameState.level++;
-        gameState.prepTime = Math.max(60, 900 - (gameState.level - 1) * 90);
-        document.querySelector('.topBar')?.classList.remove('is-invasion');
-        updateTimerUI();
-        updateShopButtons(); 
-    }
 }
 
 // ------------------------- UI i Interakcja -------------------------
@@ -596,7 +332,6 @@ function showEndScreen(title, text, color, btnText) {
 // ------------------------- Inicjalizacja i Eventy -------------------------
 
 function setupInteraction() {
-    // WSTRZYKNIĘCIE STYLI CSS DLA KURSORÓW DO HTML
     const style = document.createElement('style');
     style.innerHTML = `
         body, .mainCursor { cursor: url('../assets/images/mainCursor.png'), auto !important; }
@@ -606,7 +341,6 @@ function setupInteraction() {
     `;
     document.head.appendChild(style);
 
-    // USTAW KURZOR DOMYŚLNY DLA BODY
     document.body.classList.add('mainCursor');
 
     const grid = document.getElementById("gameGrid");
@@ -619,7 +353,6 @@ function setupInteraction() {
     Object.keys(shopItems).forEach(item => {
         const btn = document.getElementById(`${item}Button`);
         if (btn) {
-            // DODANIE ZDJĘCIA DO PRZYCISKU SKLEPU
             const img = document.createElement('img');
             img.src = itemImages[item];
             img.style.cssText = "width: 30px; height: 30px; vertical-align: middle; margin-right: 10px;";

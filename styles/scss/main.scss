@@ -9,18 +9,19 @@ html, body, .game-tile, .game-tile__placed-item, .game-board {
 }
 
 // 2. KURSOR WALKI (Tylko dla robaków)
-// Nadpisuje kursor główny tylko w momencie najechania na przeciwnika
 .enemy-worm {
   cursor: url('#{$cursor-path}/boardCursor.png') 18 18, crosshair !important;
+  pointer-events: auto;
 }
 
-// Kursor w momencie ataku (kliknięcie lewym przyciskiem myszy na robaka)
-.enemy-worm:active {
+// Kursor w momencie ataku (kliknięcie lewym przyciskiem myszy na robaka lub klasa pomocnicza)
+.enemy-worm:active, .used_boardCursor {
   cursor: url('#{$cursor-path}/used_boardCursor.png') 18 18, crosshair !important;
+  filter: brightness(0.8);
+  transform: scale(0.95);
 }
 
 // 3. ELEMENTY INTERAKTYWNE UI
-// Przyciski i sklep używają mainCursor, ale zmieniają ikonę systemową na 'pointer' (łapka) dla czytelności
 button, 
 .topBar__button, 
 .topBar__menu-btn, 
@@ -67,10 +68,11 @@ body {
   background: $color-topbar-bg;
   border-bottom: 4px solid $color-panel-border;
   box-shadow: 0 6px 0 $shadow-standard;
-  transition: background-color 0.4s ease;
+  transition: background-color 0.4s ease, background 0.3s ease;
 
   &.is-invasion {
     background: $color-danger-bg !important; 
+    background: rgba(255, 0, 0, 0.2); // czerwony efekt podczas inwazji z Twojej aktualizacji
     border-bottom-color: $color-danger-border;
     animation: pulse-danger 2s infinite;
   }
@@ -308,6 +310,10 @@ body {
   image-rendering: pixelated;
   overflow: visible;
 
+  &[data-hp] {
+    transition: opacity 0.1s ease;
+  }
+
   &--light { filter: brightness(1.1); }
   &--dark { filter: brightness(0.85); }
 
@@ -329,6 +335,12 @@ body {
     background-color: $color-tile-high-bg;
     pointer-events: none;
     z-index: 50;
+  }
+
+  &__item--cannon {
+    &.is-shooting {
+      animation: cannonShoot 0.15s ease;
+    }
   }
 }
 
@@ -388,13 +400,51 @@ body {
   image-rendering: pixelated;
 }
 
-/* ========================= ENEMIES ========================= */
+/* ========================= ENEMIES & PROJECTILES ========================= */
 .enemy-worm {
+  width: 120px;
+  height: 120px;
+  position: absolute;
+  z-index: 1000;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
   image-rendering: pixelated;
   transition: transform 0.1s linear;
   
   &--boss {
+    width: 160px;
+    height: 160px;
     filter: drop-shadow(0 4px 0 $shadow-inset-dark);
+  }
+
+  &__hp {
+    width: 100%;
+    height: 8px;
+    background: #2ecc71;
+    position: absolute;
+    top: -10px;
+    border: 2px solid black;
+    transition: width 0.2s ease, background 0.2s ease;
+  }
+}
+
+.cannonball {
+  width: 45px;
+  height: 45px;
+  position: fixed;
+  z-index: 9999999;
+  transform: translate(-50%, -50%);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  pointer-events: none;
+
+  &.is-spinning {
+    animation: cannonSpin 0.5s linear infinite;
   }
 }
 
@@ -507,6 +557,17 @@ body {
   0% { box-shadow: 0 6px 0 $shadow-standard; }
   50% { box-shadow: 0 6px 20px $color-danger-pulse; }
   100% { box-shadow: 0 6px 0 $shadow-standard; }
+}
+
+@keyframes cannonShoot {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2) rotate(-5deg); }
+  100% { transform: scale(1); }
+}
+
+@keyframes cannonSpin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 /* ========================= ROOT VARIABLES ========================= */
