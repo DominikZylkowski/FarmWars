@@ -41,7 +41,7 @@ const gameState = {
     seedCount: 0, 
     stoneCount: 0, 
     woodCount: 0,
-    prepTime: 30, 
+    prepTime: 240, 
     gamePaused: true, 
     selectedItemToPlace: null,
     isInvasionActive: false,

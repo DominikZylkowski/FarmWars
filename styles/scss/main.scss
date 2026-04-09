@@ -435,7 +435,7 @@ body {
 .cannonball {
   width: 45px;
   height: 45px;
-  position: fixed;
+  position: absolute;
   z-index: 9999999;
   transform: translate(-50%, -50%);
   background-repeat: no-repeat;

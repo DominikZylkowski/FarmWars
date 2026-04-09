@@ -201,11 +201,14 @@ function fireCannon(tile, row) {
     const projEl = document.createElement('div');
     projEl.className = 'cannonball';
 
-    projEl.style.left = `${startX}px`;
-    projEl.style.top = `${startY}px`;
+    const scale = getAppScale();
+    const appRoot = document.getElementById('appScale') || document.body;
+
+    projEl.style.left = `${startX / scale}px`;
+    projEl.style.top = `${startY / scale}px`;
     projEl.style.backgroundImage = `url('${itemImages.cannonball}')`;
 
-    document.body.appendChild(projEl);
+    appRoot.appendChild(projEl);
 
     gameState.activeProjectiles.push({
         element: projEl,
@@ -375,7 +378,7 @@ function handleLevelComplete() {
     } else {
         gameState.level++;
 
-        gameState.prepTime = 60;
+        gameState.prepTime = 240;
 
         document.querySelector('.topBar')?.classList.remove('is-invasion');
 

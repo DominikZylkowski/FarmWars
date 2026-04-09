@@ -1,3 +1,26 @@
+// ------------------------- Skalowanie całej gry -------------------------
+const APP_SCALE_BASE_WIDTH = 1600;
+const APP_SCALE_BASE_HEIGHT = 900;
+const APP_MIN_SCALE = 0.6;
+
+function getAppScale() {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--app-scale');
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function updateAppScale() {
+    const widthScale = window.innerWidth / APP_SCALE_BASE_WIDTH;
+    const heightScale = window.innerHeight / APP_SCALE_BASE_HEIGHT;
+    const scale = Math.max(APP_MIN_SCALE, Math.min(1, widthScale, heightScale));
+
+    document.documentElement.style.setProperty('--app-scale', scale.toFixed(4));
+    document.documentElement.style.setProperty('--board-scale', '1');
+}
+
+window.addEventListener('resize', updateAppScale);
+window.addEventListener('orientationchange', updateAppScale);
+
 // ------------------------- System Menu i Pauzy -------------------------
 function togglePause() {
     const menu = document.getElementById('gameMenu');
@@ -430,6 +453,7 @@ function renderBoard() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    updateAppScale();
     renderBoard();
     setupInteraction();
     spawnInitialResources();
