@@ -194,18 +194,17 @@ function fireCannon(tile, row) {
     }
 
     const rect = tile.getBoundingClientRect();
+    const scale = getAppScale();
+    const appRoot = document.getElementById('appScale') || document.body;
+    const rootRect = appRoot.getBoundingClientRect();
 
-    const startX = rect.left + rect.width / 2;
-    const startY = rect.top + rect.height / 2;
+    const startX = (rect.left - rootRect.left + rect.width / 2) / scale;
+    const startY = (rect.top - rootRect.top + rect.height / 2) / scale;
 
     const projEl = document.createElement('div');
     projEl.className = 'cannonball';
-
-    const scale = getAppScale();
-    const appRoot = document.getElementById('appScale') || document.body;
-
-    projEl.style.left = `${startX / scale}px`;
-    projEl.style.top = `${startY / scale}px`;
+    projEl.style.left = `${startX}px`;
+    projEl.style.top = `${startY}px`;
     projEl.style.backgroundImage = `url('${itemImages.cannonball}')`;
 
     appRoot.appendChild(projEl);
@@ -253,7 +252,7 @@ function updateProjectiles() {
             }
         }
 
-        if (hit || drawX > window.innerWidth) {
+        if (hit || drawX * getAppScale() > window.innerWidth) {
             p.element.remove();
             gameState.activeProjectiles.splice(i, 1);
         }

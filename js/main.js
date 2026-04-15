@@ -15,63 +15,77 @@ function updateAppScale() {
     const scale = Math.max(APP_MIN_SCALE, Math.min(1, widthScale, heightScale));
 
     document.documentElement.style.setProperty('--app-scale', scale.toFixed(4));
-    document.documentElement.style.setProperty('--board-scale', '1');
+}
+
+function setGamePaused(shouldPause, options = {}) {
+    const { showMenu = true } = options;
+    const menu = document.getElementById('gameMenu');
+
+    gameState.gamePaused = shouldPause;
+
+    if (shouldPause) {
+        if (menu && showMenu) {
+            menu.classList.remove('is-hidden');
+            menu.style.zIndex = '10000000';
+
+            const startBtn = document.getElementById('startGameButton');
+            if (startBtn) startBtn.textContent = 'WZNÓW GRĘ';
+
+            const controls = menu.querySelectorAll('button, input, select');
+            controls.forEach(c => c.style.zIndex = '10000001');
+        }
+
+        document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
+            tile.dataset.pausedTime = '0';
+        });
+        return;
+    }
+
+    if (menu) {
+        menu.classList.add('is-hidden');
+        menu.style.zIndex = '';
+
+        const startBtn = document.getElementById('startGameButton');
+        if (startBtn) startBtn.textContent = 'ZAGRAJ';
+
+        const controls = menu.querySelectorAll('button, input, select');
+        controls.forEach(c => c.style.zIndex = '');
+    }
+
+    lastFrameTime = Date.now();
+
+    if (gameState.isInvasionActive) {
+        requestAnimationFrame(updateGameLoop);
+    }
+
+    document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
+        const pausedTime = parseInt(tile.dataset.pausedTime || '0');
+        tile.dataset.growthStart = parseInt(tile.dataset.growthStart || `${Date.now()}`) + pausedTime;
+        tile.dataset.pausedTime = '0';
+    });
+}
+
+function togglePause() {
+    if (gameState.tutorialVisible) return;
+    setGamePaused(!gameState.gamePaused);
 }
 
 window.addEventListener('resize', updateAppScale);
 window.addEventListener('orientationchange', updateAppScale);
 
-// ------------------------- System Menu i Pauzy -------------------------
-function togglePause() {
-    const menu = document.getElementById('gameMenu');
-    if (!menu) return;
-
-    gameState.gamePaused = !gameState.gamePaused;
-
-    if (gameState.gamePaused) {
-        menu.classList.remove('is-hidden');
-        menu.style.zIndex = "10000000";
-
-        const startBtn = document.getElementById('startGameButton');
-        if (startBtn) startBtn.textContent = "WZNÓW GRĘ";
-
-        const controls = menu.querySelectorAll('button, input, select');
-        controls.forEach(c => c.style.zIndex = "10000001");
-
-        // Zatrzymanie czasu dla drzew w trakcie pauzy
-        document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
-            tile.dataset.pausedTime = "0";
-        });
-
-    } else {
-        menu.classList.add('is-hidden');
-
-        // Reset czasu klatki, aby uniknąć "skoków" po pauzie
-        lastFrameTime = Date.now();
-
-        // Wznów pętlę animacji inwazji
-        if (gameState.isInvasionActive) {
-            requestAnimationFrame(updateGameLoop);
-        }
-
-        // Wznów wzrost drzew, uwzględniając czas pauzy
-        document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
-            const pausedTime = parseInt(tile.dataset.pausedTime || "0");
-            tile.dataset.growthStart = parseInt(tile.dataset.growthStart) + pausedTime;
-            tile.dataset.pausedTime = "0";
-        });
-    }
-}
-
 // ------------------------- System Przeciągania (Drag & Drop) -------------------------
 function handleDragStart(e) {
-    const itemId = e.target.id.replace('Button', '');
-    if (!canAfford(itemId) || gameState.gamePaused) {
+    const button = e.currentTarget || e.target.closest('button');
+    const itemId = button?.id?.replace('Button', '');
+
+    if (!itemId || !canAfford(itemId) || gameState.gamePaused) {
         e.preventDefault();
         return;
     }
+
     gameState.selectedItemToPlace = itemId;
     e.dataTransfer.setData('text/plain', itemId);
+    e.dataTransfer.effectAllowed = 'move';
     updateVisualHighlights();
 }
 
@@ -91,11 +105,136 @@ function handleDrop(e) {
 
 function updateVisualHighlights() {
     document.querySelectorAll('.game-tile').forEach(tile => {
-        tile.classList.remove('game-tile--can-place');
-        if (gameState.selectedItemToPlace && !isTileOccupied(tile)) {
-            tile.classList.add('game-tile--can-place');
-        }
+        tile.classList.remove('can-place', 'game-tile--can-place');
     });
+}
+
+const RESOURCE_LABELS = {
+    wood: 'Drewno',
+    stone: 'Kamień',
+    seeds: 'Nasiona'
+};
+
+function svgToDataUri(svg) {
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+const RESOURCE_ICONS = {
+    wood: 'assets/images/tree.png',
+    stone: 'assets/images/stone.png',
+    seeds: 'assets/images/grass.png'
+};
+
+function renderShopCosts() {
+    Object.entries(shopItems).forEach(([item, cost]) => {
+        const container = document.getElementById(`${item}Costs`);
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        Object.entries(cost).forEach(([resource, amount]) => {
+            const row = document.createElement('div');
+            row.className = 'shop-item__cost';
+
+            const icon = document.createElement('img');
+            icon.className = 'shop-item__cost-icon';
+            icon.alt = RESOURCE_LABELS[resource] || resource;
+            icon.src = RESOURCE_ICONS[resource] || '';
+
+            const value = document.createElement('span');
+            value.className = 'shop-item__cost-value';
+            value.textContent = `x${amount}`;
+
+            row.append(icon, value);
+            container.appendChild(row);
+        });
+    });
+}
+
+const TUTORIAL_STEPS = [
+    {
+        title: 'Zbieraj surowce',
+        text: 'Klikaj na trawę, kamień i inne surowce na planszy, żeby dodać je do swojego ekwipunku.'
+    },
+    {
+        title: 'Buduj z topbaru',
+        text: 'Przeciągnij ikonę produktu z górnego paska na wolny kafelek. Obok przycisku od razu widzisz, co jest potrzebne.'
+    },
+    {
+        title: 'Armaty strzelają same',
+        text: 'Postaw armatę na swojej stronie planszy, a sama będzie ostrzeliwać robaki, gdy pojawią się w tym rzędzie.'
+    },
+    {
+        title: 'Pauza działa zawsze',
+        text: 'Menu i ESC zatrzymują czas. Możesz wrócić do gry bez tracenia postępu i bez rozjeżdżania akcji.'
+    }
+];
+
+function renderTutorialStep() {
+    const title = document.getElementById('tutorialStepTitle');
+    const text = document.getElementById('tutorialStepText');
+    const progress = document.getElementById('tutorialStepProgress');
+    const nextBtn = document.getElementById('tutorialNextButton');
+
+    const total = TUTORIAL_STEPS.length;
+    const step = Math.min(gameState.tutorialStep, total - 1);
+    const current = TUTORIAL_STEPS[step];
+
+    if (title) title.textContent = current.title;
+    if (text) text.textContent = current.text;
+    if (progress) progress.textContent = `${step + 1}/${total}`;
+    if (nextBtn) nextBtn.textContent = step >= total - 1 ? 'Zakończ' : 'Dalej';
+}
+
+function showTutorial() {
+    const overlay = document.getElementById('tutorialOverlay');
+    if (!overlay) return;
+
+    gameState.tutorialVisible = true;
+    gameState.gameStarted = true;
+    gameState.tutorialStep = 0;
+    setGamePaused(true, { showMenu: false });
+    renderTutorialStep();
+    overlay.classList.remove('is-hidden');
+}
+
+function finishTutorial() {
+    const overlay = document.getElementById('tutorialOverlay');
+    if (overlay) overlay.classList.add('is-hidden');
+
+    gameState.tutorialVisible = false;
+    gameState.tutorialCompleted = true;
+    localStorage.setItem('farmwarsTutorialCompleted', '1');
+    gameState.tutorialStep = 0;
+    setGamePaused(false, { showMenu: false });
+}
+
+function advanceTutorial() {
+    if (!gameState.tutorialVisible) return;
+
+    if (gameState.tutorialStep >= TUTORIAL_STEPS.length - 1) {
+        finishTutorial();
+        return;
+    }
+
+    gameState.tutorialStep += 1;
+    renderTutorialStep();
+}
+
+function skipTutorial() {
+    if (!gameState.tutorialVisible) return;
+    finishTutorial();
+}
+
+function handleStartButton() {
+    if (!gameState.gameStarted) {
+        const menu = document.getElementById('gameMenu');
+        if (menu) menu.classList.add('is-hidden');
+        showTutorial();
+        return;
+    }
+
+    togglePause();
 }
 
 function canAfford(item) {
@@ -400,7 +539,7 @@ function setupInteraction() {
 
     document.body.classList.add('mainCursor');
 
-    const grid = document.getElementById("gameGrid");
+    const grid = document.getElementById('gameGrid');
     if (grid) {
         grid.onclick = handleGridClick;
         grid.ondragover = handleDragOver;
@@ -412,7 +551,8 @@ function setupInteraction() {
         if (btn) {
             const img = document.createElement('img');
             img.src = itemImages[item];
-            img.style.cssText = "width: 30px; height: 30px; vertical-align: middle; margin-right: 10px;";
+            img.alt = item;
+            img.className = 'shop-item__product-icon';
             btn.prepend(img);
 
             btn.setAttribute('draggable', 'true');
@@ -420,15 +560,23 @@ function setupInteraction() {
         }
     });
 
+    renderShopCosts();
+
     const menuBtn = document.getElementById('menuGameButton');
     if (menuBtn) menuBtn.onclick = togglePause;
 
     const startBtn = document.getElementById('startGameButton');
-    if (startBtn) startBtn.onclick = togglePause;
+    if (startBtn) startBtn.onclick = handleStartButton;
+
+    const tutorialNext = document.getElementById('tutorialNextButton');
+    if (tutorialNext) tutorialNext.onclick = advanceTutorial;
+
+    const tutorialSkip = document.getElementById('tutorialSkipButton');
+    if (tutorialSkip) tutorialSkip.onclick = skipTutorial;
 
     // Obsługa klawisza ESC
-    window.onkeydown = (e) => { 
-        if (e.key === "Escape") togglePause(); 
+    window.onkeydown = (e) => {
+        if (e.key === 'Escape' && !gameState.tutorialVisible) togglePause();
     };
 
     const volSlider = document.getElementById('volumeRange');
@@ -441,6 +589,7 @@ function setupInteraction() {
 }
 
 function renderBoard() {
+
     const grid = document.getElementById('gameGrid');
     if (!grid) return;
     grid.innerHTML = '';
@@ -453,6 +602,7 @@ function renderBoard() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    gameState.gameStarted = false;
     updateAppScale();
     renderBoard();
     setupInteraction();

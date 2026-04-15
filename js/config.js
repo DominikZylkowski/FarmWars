@@ -14,7 +14,7 @@ const GAME_CONFIG = {
         tree: 5, 
         cannon: 10, 
         woodFence: 8, 
-        stoneWall: 15, 
+        stoneWall: 25, 
         worm: 10,
         worm_boss: 30 
     },
@@ -30,8 +30,8 @@ const GAME_CONFIG = {
         9: { normal: 45, boss: 15 },
         10: { normal: 50, boss: 20 }
     },
-    enemySpeed: 0.45,
-    bossSpeed: 0.35,
+    enemySpeed: 0.55,
+    bossSpeed: 0.45,
     projectileSpeed: 4, 
     cannonDamage: 3      
 };
@@ -49,6 +49,9 @@ const gameState = {
     totalEnemiesInWave: 0,
     activeEnemies: [],
     activeProjectiles: [], 
+    tutorialVisible: false,
+    tutorialStep: 0,
+    tutorialCompleted: localStorage.getItem('farmwarsTutorialCompleted') === '1',
     volume: parseInt(localStorage.getItem('gameVolume')) || 50
 };
 

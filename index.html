@@ -33,19 +33,19 @@
     <div class="topBar__actions">
         <div class="shop-item">
             <button class="topBar__button" id="cannonButton">Armata</button>
-            <span class="shop-item__max" id="cannonMax">0/5</span>
+            <div class="shop-item__costs" id="cannonCosts"></div>
         </div>
         <div class="shop-item">
             <button class="topBar__button" id="seedlingButton">Sadzonka</button>
-            <span class="shop-item__max" id="seedlingMax">0/10</span>
+            <div class="shop-item__costs" id="seedlingCosts"></div>
         </div>
         <div class="shop-item">
             <button class="topBar__button" id="woodFenceButton">Płot</button>
-            <span class="shop-item__max" id="fenceMax">0/20</span>
+            <div class="shop-item__costs" id="woodFenceCosts"></div>
         </div>
         <div class="shop-item">
             <button class="topBar__button" id="stoneWallButton">Murek</button>
-            <span class="shop-item__max" id="wallMax">0/15</span>
+            <div class="shop-item__costs" id="stoneWallCosts"></div>
         </div>
     </div>
 
@@ -62,9 +62,18 @@
     <!-- 4. ZASOBY I KONTROLA - Prawa strona -->
     <div class="topBar__right-side">
         <div class="topBar__resources">
-            <span class="topBar__resource">Drewno: <span class="topBar__resource-wood-count">10</span></span>
-            <span class="topBar__resource">Nasiona: <span class="topBar__resource-seeds-count">12</span></span>
-            <span class="topBar__resource">Kamień: <span class="topBar__resource-stone-count">5</span></span>
+            <span class="topBar__resource topBar__resource--wood">
+                <img class="topBar__resource-icon" src="./assets/images/tree.png" alt="Drewno">
+                <span class="topBar__resource-value topBar__resource-wood-count">10</span>
+            </span>
+            <span class="topBar__resource topBar__resource--seeds">
+                <img class="topBar__resource-icon" src="./assets/images/grass.png" alt="Nasiona">
+                <span class="topBar__resource-value topBar__resource-seeds-count">12</span>
+            </span>
+            <span class="topBar__resource topBar__resource--stone">
+                <img class="topBar__resource-icon" src="./assets/images/stone.png" alt="Kamień">
+                <span class="topBar__resource-value topBar__resource-stone-count">5</span>
+            </span>
         </div>
 
         <!-- Przycisk MENU (otwiera menu/pauzę) -->
@@ -92,6 +101,21 @@
         </div>
     </section>
 </main>
+
+<!-- Samouczek -->
+<div class="tutorial is-hidden" id="tutorialOverlay" aria-live="polite">
+    <div class="tutorial__panel">
+        <div class="tutorial__header">
+            <span class="tutorial__title" id="tutorialStepTitle">Samouczek</span>
+            <span class="tutorial__progress" id="tutorialStepProgress">1/4</span>
+        </div>
+        <p class="tutorial__text" id="tutorialStepText"></p>
+        <div class="tutorial__actions">
+            <button class="tutorial__button" id="tutorialNextButton" type="button">Dalej</button>
+            <button class="tutorial__button tutorial__button--sub" id="tutorialSkipButton" type="button">Pomiń samouczek</button>
+        </div>
+    </div>
+</div>
 
 <!-- Menu Startowe / Overlay Pauzy -->
 <div class="menu menu--overlay" id="gameMenu">
