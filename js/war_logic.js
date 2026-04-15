@@ -376,9 +376,9 @@ function handleLevelComplete() {
     if (gameState.level >= 10) {
         gameWin();
     } else {
-        gameState.level++;
+        gameState.level++;  
 
-        gameState.prepTime = 240;
+        gameState.prepTime = 120;
 
         document.querySelector('.topBar')?.classList.remove('is-invasion');
 

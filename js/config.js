@@ -30,8 +30,8 @@ const GAME_CONFIG = {
         9: { normal: 45, boss: 15 },
         10: { normal: 50, boss: 20 }
     },
-    enemySpeed: 0.2,
-    bossSpeed: 0.15,
+    enemySpeed: 0.45,
+    bossSpeed: 0.35,
     projectileSpeed: 4, 
     cannonDamage: 3      
 };
@@ -41,7 +41,7 @@ const gameState = {
     seedCount: 0, 
     stoneCount: 0, 
     woodCount: 0,
-    prepTime: 240, 
+    prepTime: 120, 
     gamePaused: true, 
     selectedItemToPlace: null,
     isInvasionActive: false,

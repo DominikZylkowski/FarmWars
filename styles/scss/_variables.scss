@@ -16,7 +16,7 @@ $topbar-text-color:    #e4d5d5;
 $color-status-bg:      #2b1d12;
 $color-status-border:  #1a120b;
 $color-accent-gold:    #ffd700;
-$color-status-sep:     #4d4100; // Przybliżony HEX z rgba(255, 215, 0, 0.3)
+$color-status-sep:     #4d4100;
 
 // --- INWAZJA / ZAGROŻENIE (DANGER) ---
 $color-danger-bg:      #c0392b;
@@ -30,9 +30,9 @@ $color-grid-outline:   #47692c;
 $color-field-light:    #79b85a;
 $color-field-dark:     #6aa14e;
 $color-tile-highlight: #ffeb3b;
-$color-tile-high-bg:   #423d0f; // Przybliżony HEX z rgba(255, 235, 59, 0.1)
+$color-tile-high-bg:   #423d0f; 
 $color-placement-ok:   #ffc107;
-$color-placement-bg:   #4d3a02; // Przybliżony HEX z rgba(255, 193, 7, 0.3)
+$color-placement-bg:   #4d3a02; 
 
 // --- PANEL / MENU / SKLEP ---
 $panel-color:          #f5deb3;
@@ -58,11 +58,11 @@ $shadow-inset-dark:    #00000080;
 $shadow-inset-light:   #0000001f; 
 
 // --- NAKŁADKI I WARSTWY (OVERLAYS) ---
-$color-overlay-light-soft:  rgba(255, 255, 255, 0.18); // #ffffff2e
-$color-overlay-light-vsoft: rgba(255, 255, 255, 0.14); // #ffffff24
-$color-overlay-light-tile:  rgba(255, 255, 255, 0.10); // #ffffff1a
-$color-overlay-dark-soft:   rgba(0, 0, 0, 0.04);       // #0000000a
-$color-overlay-dark-vsoft:  rgba(0, 0, 0, 0.08);       // #00000014
+$color-overlay-light-soft:  rgba(255, 255, 255, 0.18);
+$color-overlay-light-vsoft: rgba(255, 255, 255, 0.14); 
+$color-overlay-light-tile:  rgba(255, 255, 255, 0.10); 
+$color-overlay-dark-soft:   rgba(0, 0, 0, 0.04);       
+$color-overlay-dark-vsoft:  rgba(0, 0, 0, 0.08);       
 
 // --- WYMIARY & LAYOUT ---
 $layout-topbar-height: 88px;
