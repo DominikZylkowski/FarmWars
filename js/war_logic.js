@@ -39,7 +39,7 @@ function handleInvasionStart() {
 
     let spawned = 0;
 
-    // Im wyższy level, tym szybciej spawn
+    // Im wyższy level, tym szybszy spawn
     const spawnIntervalTime = Math.max(500, 3000 - (gameState.level * 200));
 
     const spawnTimer = setInterval(() => {
@@ -123,41 +123,6 @@ function spawnEnemy(row, type) {
 
     // Dodanie do stanu gry
     gameState.activeEnemies.push(enemyObj);
-}
-
-// ------------------------- Damage -------------------------
-
-function damageEnemy(enemy, amount) {
-    enemy.hp -= amount;
-
-    const hpPercent = (enemy.hp / enemy.maxHp) * 100;
-    const hpBarFill = enemy.element.firstChild;
-
-    hpBarFill.style.width = `${hpPercent}%`;
-
-    if (hpPercent > 60) {
-        hpBarFill.style.background = GAME_CONFIG.hpColors.high;
-    } else if (hpPercent > 30) {
-        hpBarFill.style.background = GAME_CONFIG.hpColors.medium;
-    } else {
-        hpBarFill.style.background = GAME_CONFIG.hpColors.low;
-    }
-
-    if (enemy.hp <= 0) {
-        enemy.element.remove();
-
-        gameState.activeEnemies = gameState.activeEnemies.filter(e => e !== enemy);
-        gameState.enemiesDefeated++;
-
-        updateTimerUI();
-
-        if (
-            gameState.enemiesDefeated >= gameState.totalEnemiesInWave &&
-            gameState.activeEnemies.length === 0
-        ) {
-            handleLevelComplete();
-        }
-    }
 }
 
 // ------------------------- Cannons -------------------------
@@ -291,9 +256,7 @@ function updateGameLoop() {
 
             if (enemy.isAttacking) return;
 
-            const speed = (enemy.type === 'boss'
-                ? GAME_CONFIG.enemySpeed * 0.8
-                : GAME_CONFIG.enemySpeed);
+            const speed = enemy.type === 'boss' ? GAME_CONFIG.bossSpeed : GAME_CONFIG.enemySpeed;
 
             // Przeliczenie ruchu względem deltaTime
             enemy.offsetX += speed * delta * 60;
@@ -323,7 +286,7 @@ function updateGameLoop() {
 
                     const attackInt = setInterval(() => {
                         if (
-                            gameState.gamePaused ||
+                            !gameState.isInvasionActive ||
                             !gameState.activeEnemies.includes(enemy)
                         ) {
                             clearInterval(attackInt);
@@ -331,18 +294,19 @@ function updateGameLoop() {
                             return;
                         }
 
-                        let hp = parseFloat(nextTile.dataset.hp) || 0;
+                        if (gameState.gamePaused) return;
+
+                        const hp = parseFloat(nextTile.dataset.hp) || 0;
 
                         if (hp > 0) {
-                            hp -= attackDamage;
-                            nextTile.dataset.hp = hp;
+                            nextTile.dataset.hp = Math.max(0, hp - attackDamage);
 
                             nextTile.style.opacity = "0.7";
                             setTimeout(() => nextTile.style.opacity = "1", 100);
                         }
 
-                        if (hp <= 0) {
-                            nextTile.innerHTML = '';
+                        if (parseFloat(nextTile.dataset.hp) <= 0) {
+                            nextTile.replaceChildren();
                             clearTileData(nextTile);
 
                             enemy.isAttacking = false;
@@ -389,7 +353,11 @@ function handleLevelComplete() {
 // ------------------------- Helpers -------------------------
 
 function isTileOccupied(tile) {
-    // Tolerancyjna kolizja: ignoruj elementy dekoracyjne
-    const children = Array.from(tile.children);
-    return children.some(c => c.classList.contains('enemy-worm') || c.classList.contains('game-tile__item--cannon'));
+    return tile.dataset.hasGrass === 'true' ||
+        tile.dataset.hasStone === 'true' ||
+        tile.dataset.hasTree === 'true' ||
+        tile.dataset.isGrowing === 'true' ||
+        tile.dataset.hasFence === 'true' ||
+        tile.dataset.hasCannon === 'true' ||
+        tile.querySelector('.enemy-worm') !== null;
 }

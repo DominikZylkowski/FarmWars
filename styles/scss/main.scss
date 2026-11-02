@@ -359,8 +359,11 @@ body {
 
   &__grid {
     display: grid;
+    width: 100%;
     gap: 0;
     grid-template-columns: repeat(10, 1fr);
+    justify-self: center;
+    align-self: center;
   }
 }
 

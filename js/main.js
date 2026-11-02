@@ -1,7 +1,7 @@
 // ------------------------- Skalowanie całej gry -------------------------
 const APP_SCALE_BASE_WIDTH = 1600;
 const APP_SCALE_BASE_HEIGHT = 900;
-const APP_MIN_SCALE = 0.6;
+const APP_MIN_SCALE = 0.35;
 
 function getAppScale() {
     const raw = getComputedStyle(document.documentElement).getPropertyValue('--app-scale');
@@ -15,6 +15,43 @@ function updateAppScale() {
     const scale = Math.max(APP_MIN_SCALE, Math.min(1, widthScale, heightScale));
 
     document.documentElement.style.setProperty('--app-scale', scale.toFixed(4));
+    fitBoardToViewport(scale);
+}
+
+function fitBoardToViewport(scale = getAppScale()) {
+    const grid = document.getElementById('gameGrid');
+    const topBar = document.querySelector('.topBar');
+    const stage = document.querySelector('.game-core__stage');
+    if (!grid || !topBar || !stage) return;
+
+    // Reset limit przed pomiarem, żeby plansza mogła się ponownie powiększyć.
+    grid.style.maxWidth = '';
+
+    const stageStyles = getComputedStyle(stage);
+    const verticalPadding =
+        (parseFloat(stageStyles.paddingTop) || 0) +
+        (parseFloat(stageStyles.paddingBottom) || 0);
+    const availableHeight = Math.max(
+        0,
+        window.innerHeight / scale - topBar.offsetHeight - verticalPadding
+    );
+    const availableWidth = grid.clientWidth;
+    const boardAspectRatio = GAME_CONFIG.columns / GAME_CONFIG.rows;
+    const maxWidth = Math.min(availableWidth, availableHeight * boardAspectRatio);
+
+    if (maxWidth > 0 && maxWidth < availableWidth) {
+        grid.style.maxWidth = `${maxWidth}px`;
+    }
+}
+
+let appScaleResizeFrame = 0;
+
+function scheduleAppScaleUpdate() {
+    if (appScaleResizeFrame) cancelAnimationFrame(appScaleResizeFrame);
+    appScaleResizeFrame = requestAnimationFrame(() => {
+        appScaleResizeFrame = 0;
+        updateAppScale();
+    });
 }
 
 function setGamePaused(shouldPause, options = {}) {
@@ -36,7 +73,8 @@ function setGamePaused(shouldPause, options = {}) {
         }
 
         document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
-            tile.dataset.pausedTime = '0';
+            const growthStart = Number(tile.dataset.growthStart) || Date.now();
+            tile.dataset.pausedTime = String(Date.now() - growthStart);
         });
         return;
     }
@@ -54,13 +92,9 @@ function setGamePaused(shouldPause, options = {}) {
 
     lastFrameTime = Date.now();
 
-    if (gameState.isInvasionActive) {
-        requestAnimationFrame(updateGameLoop);
-    }
-
     document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
-        const pausedTime = parseInt(tile.dataset.pausedTime || '0');
-        tile.dataset.growthStart = parseInt(tile.dataset.growthStart || `${Date.now()}`) + pausedTime;
+        const pausedTime = Number(tile.dataset.pausedTime) || 0;
+        tile.dataset.growthStart = String(Date.now() - pausedTime);
         tile.dataset.pausedTime = '0';
     });
 }
@@ -70,8 +104,9 @@ function togglePause() {
     setGamePaused(!gameState.gamePaused);
 }
 
-window.addEventListener('resize', updateAppScale);
-window.addEventListener('orientationchange', updateAppScale);
+window.addEventListener('resize', scheduleAppScaleUpdate);
+window.addEventListener('orientationchange', scheduleAppScaleUpdate);
+window.visualViewport?.addEventListener('resize', scheduleAppScaleUpdate);
 
 // ------------------------- System Przeciągania (Drag & Drop) -------------------------
 function handleDragStart(e) {
@@ -114,10 +149,6 @@ const RESOURCE_LABELS = {
     stone: 'Kamień',
     seeds: 'Nasiona'
 };
-
-function svgToDataUri(svg) {
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-}
 
 const RESOURCE_ICONS = {
     wood: 'assets/images/tree.png',
@@ -204,7 +235,7 @@ function finishTutorial() {
 
     gameState.tutorialVisible = false;
     gameState.tutorialCompleted = true;
-    localStorage.setItem('farmwarsTutorialCompleted', '1');
+    safeSetStoredValue('farmwarsTutorialCompleted', '1');
     gameState.tutorialStep = 0;
     setGamePaused(false, { showMenu: false });
 }
@@ -247,7 +278,7 @@ function canAfford(item) {
 
 function placeSelectedItemOnTile(tile) {
     const item = gameState.selectedItemToPlace;
-    if (!item || isTileOccupied(tile) || !canAfford(item)) return;
+    if (gameState.gamePaused || !tile || !item || isTileOccupied(tile) || !canAfford(item)) return;
 
     const price = shopItems[item];
     if (price.wood) gameState.woodCount -= price.wood;
@@ -278,12 +309,11 @@ function placeSelectedItemOnTile(tile) {
 
 // ------------------------- Damage (Poprawione o blokadę pauzy) -------------------------
 function damageEnemy(enemy, amount) {
-    // Blokada zadawania obrażeń podczas pauzy
-    if (gameState.gamePaused) return;
+    if (gameState.gamePaused || !enemy || !gameState.activeEnemies.includes(enemy)) return;
 
     enemy.hp -= amount;
 
-    const hpPercent = (enemy.hp / enemy.maxHp) * 100;
+    const hpPercent = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
     const hpBarFill = enemy.element.firstChild;
 
     if (hpBarFill) {
@@ -409,10 +439,6 @@ function startPrepTimer() {
                 } else handleInvasionStart();
             }
             updateTreeGrowth();
-        } else {
-            document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
-                tile.dataset.growthStart = parseInt(tile.dataset.growthStart) + 1000;
-            });
         }
     }, 1000);
 }
@@ -425,13 +451,13 @@ function handleGridClick(event) {
 
     const size = parseInt(tile.dataset.size) || 1;
     if (tile.dataset.hasGrass === 'true') {
-        tile.innerHTML = ''; tile.dataset.hasGrass = 'false';
+        tile.replaceChildren(); tile.dataset.hasGrass = 'false';
         gameState.seedCount += size;
     } else if (tile.dataset.hasStone === 'true') {
-        tile.innerHTML = ''; tile.dataset.hasStone = 'false';
+        tile.replaceChildren(); tile.dataset.hasStone = 'false';
         gameState.stoneCount += size;
     } else if (tile.dataset.hasTree === 'true') {
-        tile.innerHTML = ''; tile.dataset.hasTree = 'false';
+        tile.replaceChildren(); tile.dataset.hasTree = 'false';
         gameState.woodCount += 2;
     }
     updateResourcesUI();
@@ -488,9 +514,15 @@ function clearTileData(tile) {
     tile.dataset.hasCannon = 'false'; tile.dataset.isGrowing = 'false'; 
     tile.dataset.hp = '0'; tile.dataset.size = '0';
     tile.dataset.lastShot = '0'; 
+    tile.style.opacity = '';
+    delete tile.dataset.growthStart;
+    delete tile.dataset.growthDuration;
+    delete tile.dataset.pausedTime;
 }
 
 function gameOver() {
+    if (gameState.gameEnded) return;
+    gameState.gameEnded = true;
     gameState.gamePaused = true;
     gameState.isInvasionActive = false;
     clearProjectiles(); 
@@ -499,6 +531,8 @@ function gameOver() {
 }
 
 function gameWin() {
+    if (gameState.gameEnded) return;
+    gameState.gameEnded = true;
     gameState.gamePaused = true;
     gameState.isInvasionActive = false;
     clearProjectiles(); 
@@ -507,38 +541,35 @@ function gameWin() {
 }
 
 function showEndScreen(title, text, color, btnText) {
+    document.getElementById('endScreen')?.remove();
     const overlay = document.createElement('div');
+    overlay.id = 'endScreen';
     overlay.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 0, 0, 0.9); z-index: 20000000;
         display: flex; flex-direction: column; justify-content: center;
         align-items: center; color: white; text-align: center; font-family: sans-serif;
     `;
-    overlay.innerHTML = `
-        <h1 style="color: ${color}; font-size: 4rem; margin-bottom: 20px;">${title}</h1>
-        <p style="font-size: 1.5rem; margin-bottom: 40px;">${text}</p>
-        <div style="margin-bottom: 40px;">
-            <p>Twórca: Dominik Żyłkowski</p>
-        </div>
-        <button id="restartBtn" style="background: ${color}; color: white; border: none; padding: 15px 40px; font-size: 1.2rem; cursor: pointer; border-radius: 5px; font-weight: bold;">${btnText}</button>
-    `;
+    const heading = document.createElement('h1');
+    heading.textContent = title;
+    heading.style.cssText = `color: ${color}; font-size: 4rem; margin-bottom: 20px;`;
+    const message = document.createElement('p');
+    message.textContent = text;
+    message.style.cssText = 'font-size: 1.5rem; margin-bottom: 40px;';
+    const creator = document.createElement('p');
+    creator.textContent = 'Twórca: Dominik Żyłkowski';
+    creator.style.marginBottom = '40px';
+    const restartBtn = document.createElement('button');
+    restartBtn.id = 'restartBtn';
+    restartBtn.textContent = btnText;
+    restartBtn.style.cssText = `background: ${color}; color: white; border: none; padding: 15px 40px; font-size: 1.2rem; cursor: pointer; border-radius: 5px; font-weight: bold;`;
+    overlay.append(heading, message, creator, restartBtn);
     document.body.appendChild(overlay);
-    document.getElementById('restartBtn').onclick = () => location.reload();
+    restartBtn.onclick = () => location.reload();
 }
 
 // ------------------------- Inicjalizacja i Eventy -------------------------
 function setupInteraction() {
-    const style = document.createElement('style');
-    style.innerHTML = `
-        body, .mainCursor { cursor: url('../assets/images/mainCursor.png'), auto !important; }
-        .boardCursor { cursor: url('../assets/images/boardCursor.png'), pointer !important; }
-        .used_boardCursor { cursor: url('../assets/images/used_boardCursor.png'), pointer !important; }
-        button, .game-tile, #gameGrid { cursor: url('../assets/images/mainCursor.png'), auto; }
-    `;
-    document.head.appendChild(style);
-
-    document.body.classList.add('mainCursor');
-
     const grid = document.getElementById('gameGrid');
     if (grid) {
         grid.onclick = handleGridClick;
@@ -583,7 +614,7 @@ function setupInteraction() {
     if (volSlider) {
         volSlider.oninput = (e) => {
             gameState.volume = e.target.value * 100;
-            localStorage.setItem('gameVolume', gameState.volume);
+            safeSetStoredValue('gameVolume', gameState.volume);
         };
     }
 }

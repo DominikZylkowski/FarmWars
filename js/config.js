@@ -43,6 +43,7 @@ const gameState = {
     woodCount: 0,
     prepTime: 120, 
     gamePaused: true, 
+    gameEnded: false,
     selectedItemToPlace: null,
     isInvasionActive: false,
     enemiesDefeated: 0,
@@ -51,9 +52,25 @@ const gameState = {
     activeProjectiles: [], 
     tutorialVisible: false,
     tutorialStep: 0,
-    tutorialCompleted: localStorage.getItem('farmwarsTutorialCompleted') === '1',
-    volume: parseInt(localStorage.getItem('gameVolume')) || 50
+    tutorialCompleted: safeGetStoredValue('farmwarsTutorialCompleted') === '1',
+    volume: Number(safeGetStoredValue('gameVolume')) || 50
 };
+
+function safeGetStoredValue(key) {
+    try {
+        return window.localStorage.getItem(key);
+    } catch (error) {
+        return null;
+    }
+}
+
+function safeSetStoredValue(key, value) {
+    try {
+        window.localStorage.setItem(key, String(value));
+    } catch (error) {
+        // Gra działa również wtedy, gdy przeglądarka blokuje localStorage.
+    }
+}
 
 const shopItems = {
     cannon: { wood: 20, stone: 15 }, 
