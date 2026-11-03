@@ -33,7 +33,13 @@ const GAME_CONFIG = {
     enemySpeed: 0.55,
     bossSpeed: 0.45,
     projectileSpeed: 4, 
-    cannonDamage: 3      
+    cannonDamage: 3,
+    scoring: {
+        pointsPerSecond: 1,
+        items: { cannon: 10, seedling: 10, woodFence: 10, stoneWall: 10 },
+        enemies: { normal: 20, boss: 35 },
+        resources: { tree: 12 }
+    }
 };
 
 const gameState = {

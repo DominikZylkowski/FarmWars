@@ -76,6 +76,12 @@
             </span>
         </div>
 
+        <div class="topBar__resource topBar__score" aria-label="Wynik gracza">
+            <span>Score:</span>
+            <strong id="scoreDisplay">0</strong>
+            <span>pkt</span>
+        </div>
+
         <!-- Przycisk MENU (otwiera menu/pauzę) -->
         <button class="topBar__menu-btn" id="menuGameButton">MENU</button>
 
@@ -123,6 +129,7 @@
     <div class="menu__button-group">
         <!-- Ten przycisk służy zarówno do startu, jak i do wznowienia (Resume) -->
         <button class="menu__button" id="startGameButton" type="button">ZAGRAJ</button>
+        <button class="ranking__button" id="rankingButton" type="button">RANKING</button>
         
         <!-- Opcje dźwięku -->
         <div class="volume-settings">
@@ -138,6 +145,9 @@
 
 <!-- Scripts -->
  <script src="./js/config.js"></script>
+ <script src="./js/score.js"></script>
+ <script src="./js/ranking.js"></script>
+ <script src="./js/ranking_ui.js"></script>
  <script src="./js/war_logic.js"></script>
 <script src="./js/main.js"></script>
 

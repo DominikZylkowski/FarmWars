@@ -1,47 +1,22 @@
 // ------------------------- Skalowanie całej gry -------------------------
-const APP_SCALE_BASE_WIDTH = 1600;
-const APP_SCALE_BASE_HEIGHT = 900;
-const APP_MIN_SCALE = 0.35;
-
 function getAppScale() {
-    const raw = getComputedStyle(document.documentElement).getPropertyValue('--app-scale');
-    const parsed = parseFloat(raw);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    return 1;
 }
 
 function updateAppScale() {
-    const widthScale = window.innerWidth / APP_SCALE_BASE_WIDTH;
-    const heightScale = window.innerHeight / APP_SCALE_BASE_HEIGHT;
-    const scale = Math.max(APP_MIN_SCALE, Math.min(1, widthScale, heightScale));
-
-    document.documentElement.style.setProperty('--app-scale', scale.toFixed(4));
-    fitBoardToViewport(scale);
+    fitBoardToViewport();
 }
 
-function fitBoardToViewport(scale = getAppScale()) {
+function fitBoardToViewport() {
     const grid = document.getElementById('gameGrid');
-    const topBar = document.querySelector('.topBar');
-    const stage = document.querySelector('.game-core__stage');
-    if (!grid || !topBar || !stage) return;
+    const board = document.getElementById('gameBoard');
+    if (!grid || !board) return;
 
-    // Reset limit przed pomiarem, żeby plansza mogła się ponownie powiększyć.
-    grid.style.maxWidth = '';
-
-    const stageStyles = getComputedStyle(stage);
-    const verticalPadding =
-        (parseFloat(stageStyles.paddingTop) || 0) +
-        (parseFloat(stageStyles.paddingBottom) || 0);
-    const availableHeight = Math.max(
-        0,
-        window.innerHeight / scale - topBar.offsetHeight - verticalPadding
-    );
-    const availableWidth = grid.clientWidth;
-    const boardAspectRatio = GAME_CONFIG.columns / GAME_CONFIG.rows;
-    const maxWidth = Math.min(availableWidth, availableHeight * boardAspectRatio);
-
-    if (maxWidth > 0 && maxWidth < availableWidth) {
-        grid.style.maxWidth = `${maxWidth}px`;
-    }
+    const house = board.querySelector('.game-board__house-slot');
+    const gap = parseFloat(getComputedStyle(board).columnGap) || 0;
+    const availableWidth = Math.max(0, board.clientWidth - house.offsetWidth - gap);
+    const width = Math.min(availableWidth, board.clientHeight * GAME_CONFIG.columns / GAME_CONFIG.rows);
+    grid.style.width = Math.max(0, width) + 'px';
 }
 
 let appScaleResizeFrame = 0;
@@ -55,10 +30,14 @@ function scheduleAppScaleUpdate() {
 }
 
 function setGamePaused(shouldPause, options = {}) {
+    if (gameState.gameEnded) return;
     const { showMenu = true } = options;
     const menu = document.getElementById('gameMenu');
 
+    setScoreClockRunning(false);
     gameState.gamePaused = shouldPause;
+    setScoreClockRunning(!shouldPause && gameState.gameStarted && !gameState.tutorialVisible);
+    updateScoreUI();
 
     if (shouldPause) {
         if (menu && showMenu) {
@@ -259,6 +238,8 @@ function skipTutorial() {
 
 function handleStartButton() {
     if (!gameState.gameStarted) {
+        startScore();
+        updateScoreUI();
         const menu = document.getElementById('gameMenu');
         if (menu) menu.classList.add('is-hidden');
         showTutorial();
@@ -278,7 +259,7 @@ function canAfford(item) {
 
 function placeSelectedItemOnTile(tile) {
     const item = gameState.selectedItemToPlace;
-    if (gameState.gamePaused || !tile || !item || isTileOccupied(tile) || !canAfford(item)) return;
+    if (gameState.gamePaused || gameState.gameEnded || !tile || !item || isTileOccupied(tile) || !canAfford(item)) return;
 
     const price = shopItems[item];
     if (price.wood) gameState.woodCount -= price.wood;
@@ -304,12 +285,14 @@ function placeSelectedItemOnTile(tile) {
         tile.dataset.hp = GAME_CONFIG.hpValues[item] || 10;
     }
 
+    awardScoreForEvent('items', item, el);
+    updateScoreUI();
     updateResourcesUI();
 }
 
 // ------------------------- Damage (Poprawione o blokadę pauzy) -------------------------
 function damageEnemy(enemy, amount) {
-    if (gameState.gamePaused || !enemy || !gameState.activeEnemies.includes(enemy)) return;
+    if (gameState.gamePaused || gameState.gameEnded || !enemy || !gameState.activeEnemies.includes(enemy)) return;
 
     enemy.hp -= amount;
 
@@ -328,6 +311,8 @@ function damageEnemy(enemy, amount) {
     }
 
     if (enemy.hp <= 0) {
+        awardScoreForEvent('enemies', enemy.type, enemy);
+        updateScoreUI();
         enemy.element.remove();
         gameState.activeEnemies = gameState.activeEnemies.filter(e => e !== enemy);
         gameState.enemiesDefeated++;
@@ -457,8 +442,11 @@ function handleGridClick(event) {
         tile.replaceChildren(); tile.dataset.hasStone = 'false';
         gameState.stoneCount += size;
     } else if (tile.dataset.hasTree === 'true') {
+        const tree = tile.querySelector('.game-tile__item--tree');
         tile.replaceChildren(); tile.dataset.hasTree = 'false';
         gameState.woodCount += 2;
+        awardScoreForEvent('resources', 'tree', tree);
+        updateScoreUI();
     }
     updateResourcesUI();
 }
@@ -522,6 +510,8 @@ function clearTileData(tile) {
 
 function gameOver() {
     if (gameState.gameEnded) return;
+    finishScore('lost');
+    updateScoreUI();
     gameState.gameEnded = true;
     gameState.gamePaused = true;
     gameState.isInvasionActive = false;
@@ -532,6 +522,8 @@ function gameOver() {
 
 function gameWin() {
     if (gameState.gameEnded) return;
+    finishScore('won');
+    updateScoreUI();
     gameState.gameEnded = true;
     gameState.gamePaused = true;
     gameState.isInvasionActive = false;
@@ -544,6 +536,7 @@ function showEndScreen(title, text, color, btnText) {
     document.getElementById('endScreen')?.remove();
     const overlay = document.createElement('div');
     overlay.id = 'endScreen';
+    overlay.className = 'end-screen';
     overlay.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 0, 0, 0.9); z-index: 20000000;
@@ -563,13 +556,29 @@ function showEndScreen(title, text, color, btnText) {
     restartBtn.id = 'restartBtn';
     restartBtn.textContent = btnText;
     restartBtn.style.cssText = `background: ${color}; color: white; border: none; padding: 15px 40px; font-size: 1.2rem; cursor: pointer; border-radius: 5px; font-weight: bold;`;
-    overlay.append(heading, message, creator, restartBtn);
+    const score = document.createElement('p');
+    score.className = 'end-screen__score';
+    score.textContent = `Score: ${formatScore(scoreState.totalScore)} pkt`;
+    overlay.append(heading, message, score);
+    mountScoreSaveForm(overlay);
+    overlay.append(creator, restartBtn);
     document.body.appendChild(overlay);
     restartBtn.onclick = () => location.reload();
 }
 
 // ------------------------- Inicjalizacja i Eventy -------------------------
+function formatScore(value) {
+    return value.toLocaleString('pl-PL');
+}
+
+function updateScoreUI() {
+    const display = document.getElementById('scoreDisplay');
+    if (display) display.textContent = formatScore(scoreState.totalScore);
+}
+
 function setupInteraction() {
+    const rankingButton = document.getElementById('rankingButton');
+    if (rankingButton) rankingButton.onclick = showRanking;
     const grid = document.getElementById('gameGrid');
     if (grid) {
         grid.onclick = handleGridClick;
@@ -634,6 +643,12 @@ function renderBoard() {
 
 document.addEventListener('DOMContentLoaded', () => {
     gameState.gameStarted = false;
+    resetScore();
+    updateScoreUI();
+    setInterval(() => {
+        updateScoreTime();
+        updateScoreUI();
+    }, 100);
     updateAppScale();
     renderBoard();
     setupInteraction();
@@ -641,6 +656,12 @@ document.addEventListener('DOMContentLoaded', () => {
     updateResourcesUI();
     updateTimerUI();
     startPrepTimer();
+    scheduleAppScaleUpdate();
+    document.fonts?.ready.then(scheduleAppScaleUpdate);
+    if (typeof ResizeObserver !== 'undefined') {
+        const boardResizeObserver = new ResizeObserver(scheduleAppScaleUpdate);
+        boardResizeObserver.observe(document.getElementById('gameBoard'));
+    }
 
     setInterval(() => { if(!gameState.gamePaused && !gameState.isInvasionActive) spawnRandomResource('grass') }, 15000);
     setInterval(() => { if(!gameState.gamePaused && !gameState.isInvasionActive) spawnRandomResource('stone') }, 25000);
