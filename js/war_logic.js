@@ -1,363 +1,163 @@
-// ------------------------- Inwazja i Walka -------------------------
+// Geometria w pikselach logicznych, zapisana raz na początku partii.
+const COLLISION_GEOMETRY = Object.freeze({ normal: 120, boss: 160, projectile: 45, hitInset: 20, contact: 55 });
 
-// Zmienna do obsługi płynnego czasu (powinna być zadeklarowana globalnie)
-let lastFrameTime = Date.now();
-
-function handleInvasionStart() {
-    // Reset stanu najazdu
+function handleInvasionStart(now = getGameTime()) {
+    if (gameState.gamePaused || gameState.gameEnded || gameState.isInvasionActive) return;
     gameState.isInvasionActive = true;
     gameState.enemiesDefeated = 0;
-    lastFrameTime = Date.now(); // Reset czasu przy starcie inwazji
-
-    // Pobranie aktualnej fali (fallback na 10 poziom)
-    const currentWave = GAME_CONFIG.waves[gameState.level] || GAME_CONFIG.waves[10];
-    gameState.totalEnemiesInWave = currentWave.normal + currentWave.boss;
-
-    // UI - tryb najazdu
-    document.querySelector('.topBar')?.classList.add('is-invasion');
-
-    const menuBtn = document.getElementById('menuGameButton');
-    if (menuBtn) {
-        menuBtn.style.color = 'black';
+    const wave = GAME_CONFIG.waves[gameState.level];
+    const queue = [...Array(wave.normal).fill('normal'), ...Array(wave.boss).fill('boss')];
+    // Jawna kolejność losowań, niezależna od implementacji Array.sort().
+    for (let i = queue.length - 1; i > 0; i--) {
+        const index = Math.floor(gameRandom() * (i + 1));
+        [queue[i], queue[index]] = [queue[index], queue[i]];
     }
-
-    updateTimerUI();
-
-    // Kolejka spawnów
-    const spawnQueue = [];
-
-    for (let i = 0; i < currentWave.normal; i++) {
-        spawnQueue.push('normal');
-    }
-
-    for (let i = 0; i < currentWave.boss; i++) {
-        spawnQueue.push('boss');
-    }
-
-    // Losowe tasowanie kolejki spawnów
-    spawnQueue.sort(() => Math.random() - 0.5);
-
-    let spawned = 0;
-
-    // Im wyższy level, tym szybszy spawn
-    const spawnIntervalTime = Math.max(500, 3000 - (gameState.level * 200));
-
-    const spawnTimer = setInterval(() => {
-        if (gameState.gamePaused) return;
-
-        if (spawned >= spawnQueue.length) {
-            clearInterval(spawnTimer);
-            return;
-        }
-
-        const randomRow = Math.floor(Math.random() * 5);
-        const enemyType = spawnQueue[spawned];
-
-        spawnEnemy(randomRow, enemyType);
-        spawned++;
-    }, spawnIntervalTime);
-
-    // Start pętli gry
-    requestAnimationFrame(updateGameLoop);
+    gameState.totalEnemiesInWave = queue.length;
+    scheduleGameTask('wave', Math.max(500, 3000 - gameState.level * 200), true, { queue, spawned: 0 }, now);
 }
-
-// ------------------------- Enemy -------------------------
 
 function spawnEnemy(row, type) {
-    const tiles = document.querySelectorAll('.game-tile');
-    const targetTile = tiles[(row * 10) + 9];
-
-    if (!targetTile) return;
-
-    // Tworzenie elementu przeciwnika
-    const enemyEl = document.createElement('div');
-    enemyEl.className = `enemy-worm ${type === 'boss' ? 'enemy-worm--boss' : ''}`;
-
-    // Ustalanie grafiki i HP
-    const isBoss = type === 'boss';
-    const img = isBoss ? itemImages.worm_boss : itemImages.worm_full;
-    const hpValue = isBoss ? GAME_CONFIG.hpValues.worm_boss : GAME_CONFIG.hpValues.worm;
-
-    enemyEl.style.backgroundImage = `url('${img}')`;
-
-    // Pasek HP
-    const hpFill = document.createElement('div');
-    hpFill.className = 'enemy-worm__hp';
-    enemyEl.appendChild(hpFill);
-
-    // Dodanie do planszy
-    targetTile.appendChild(enemyEl);
-
-    // Obiekt przeciwnika
-    const enemyObj = { 
-        element: enemyEl, 
-        hp: hpValue, 
-        maxHp: hpValue, 
-        offsetX: 0, 
-        row: row, 
-        currentCol: 9, 
-        isAttacking: false,
-        type: type 
-    };
-
-    // Obsługa kursora (mousedown / mouseup)
-    enemyEl.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
-        enemyEl.classList.add('used_boardCursor');
-    });
-
-    enemyEl.addEventListener('mouseup', (e) => {
-        e.stopPropagation();
-        enemyEl.classList.remove('used_boardCursor');
-    });
-
-    enemyEl.addEventListener('mouseleave', () => {
-        enemyEl.classList.remove('used_boardCursor');
-    });
-
-    // Kliknięcie = zadanie obrażeń
-    enemyEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        damageEnemy(enemyObj, 2);
-    });
-
-    // Dodanie do stanu gry
-    gameState.activeEnemies.push(enemyObj);
-}
-
-// ------------------------- Cannons -------------------------
-
-function updateCannons() {
-    const tiles = document.querySelectorAll('.game-tile');
-
-    tiles.forEach((tile, index) => {
-        if (tile.dataset.hasCannon === 'true') {
-            const row = Math.floor(index / 10);
-
-            const hasEnemiesInRow = gameState.activeEnemies.some(e => e.row === row);
-
-            if (hasEnemiesInRow) {
-                const now = Date.now();
-                const lastShot = parseInt(tile.dataset.lastShot) || 0;
-
-                if (now - lastShot >= 1000) {
-                    tile.dataset.lastShot = now;
-                    fireCannon(tile, row);
-                }
-            }
-        }
+    if (gameState.gamePaused || gameState.gameEnded || !gameState.isInvasionActive ||
+        !Number.isInteger(row) || row < 0 || row >= GAME_CONFIG.rows || !['normal', 'boss'].includes(type)) return;
+    const hp = GAME_CONFIG.hpValues[type === 'boss' ? 'worm_boss' : 'worm'];
+    gameState.activeEnemies.push({
+        id: ++nextEntityId, hp, maxHp: hp, offsetX: 0, row, currentCol: GAME_CONFIG.columns - 1,
+        attackTimer: null, type
     });
 }
 
-function fireCannon(tile, row) {
-    const cannonEl = tile.querySelector('.game-tile__item--cannon');
+function damageEnemy(enemy, amount) {
+    if (gameState.gamePaused || gameState.gameEnded || !enemy || !Number.isFinite(amount) ||
+        amount <= 0 || !gameState.activeEnemies.includes(enemy)) return false;
 
-    if (cannonEl) {
-        cannonEl.classList.remove('is-shooting');
-        void cannonEl.offsetWidth;
-        cannonEl.classList.add('is-shooting');
+    enemy.hp -= amount;
+    if (enemy.hp > 0) return true;
+
+    cancelGameTask(enemy.attackTimer);
+    awardScoreForEvent('enemies', enemy.type, enemy.id);
+    gameState.activeEnemies = gameState.activeEnemies.filter(candidate => candidate !== enemy);
+    gameState.enemiesDefeated++;
+    if (gameState.enemiesDefeated >= gameState.totalEnemiesInWave && gameState.activeEnemies.length === 0) {
+        handleLevelComplete();
     }
+    return true;
+}
 
-    const rect = tile.getBoundingClientRect();
-    const scale = getAppScale();
-    const appRoot = document.getElementById('appScale') || document.body;
-    const rootRect = appRoot.getBoundingClientRect();
+function updateCannons(now = getGameTime()) {
+    const occupiedRows = new Set(gameState.activeEnemies.map(enemy => enemy.row));
+    for (const tile of gameState.tiles) {
+        const cannon = tile.object;
+        if (cannon?.type === 'cannon' && occupiedRows.has(tile.row) && now - cannon.lastShot >= 1000) {
+            cannon.lastShot = now;
+            fireCannon(tile);
+        }
+    }
+}
 
-    const startX = (rect.left - rootRect.left + rect.width / 2) / scale;
-    const startY = (rect.top - rootRect.top + rect.height / 2) / scale;
-
-    const projEl = document.createElement('div');
-    projEl.className = 'cannonball';
-    projEl.style.left = `${startX}px`;
-    projEl.style.top = `${startY}px`;
-    projEl.style.backgroundImage = `url('${itemImages.cannonball}')`;
-
-    appRoot.appendChild(projEl);
-
+function fireCannon(tile) {
     gameState.activeProjectiles.push({
-        element: projEl,
-        currentX: startX,
-        currentY: startY,
-        xOffset: 0,
-        row: row
+        id: ++nextEntityId, column: tile.column, xOffset: 0, row: tile.row
     });
 }
 
-// ------------------------- Projectiles -------------------------
+function projectileHitsEnemy(projectile, enemy, tileWidth) {
+    // Obrócony kwadrat pocisku dawał prostokąt AABB w getBoundingClientRect().
+    const angle = projectile.xOffset * 2 * Math.PI / 180;
+    const halfProjectile = COLLISION_GEOMETRY.projectile / 2 * (Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)));
+    const halfEnemy = COLLISION_GEOMETRY[enemy.type] / 2;
+    const enemyX = (GAME_CONFIG.columns - 0.5) * tileWidth - enemy.offsetX;
+    const projectileX = (projectile.column + 0.5) * tileWidth + projectile.xOffset;
+    return projectileX + halfProjectile >= enemyX - halfEnemy + COLLISION_GEOMETRY.hitInset &&
+        projectileX - halfProjectile <= enemyX + halfEnemy;
+}
 
-function updateProjectiles() {
+function updateProjectiles(delta = 1 / 60) {
+    const { columnPitch, projectileLimit } = gameState.geometry;
+    const enemiesByRow = Array.from({ length: GAME_CONFIG.rows }, () => []);
+    for (const enemy of gameState.activeEnemies) enemiesByRow[enemy.row].push(enemy);
     for (let i = gameState.activeProjectiles.length - 1; i >= 0; i--) {
-        const p = gameState.activeProjectiles[i];
-
-        p.xOffset += GAME_CONFIG.projectileSpeed;
-
-        const drawX = p.currentX + p.xOffset;
-
-        p.element.style.left = `${drawX}px`;
-        p.element.style.transform = `translate(-50%, -50%) rotate(${p.xOffset * 2}deg)`;
-
-        const pRect = p.element.getBoundingClientRect();
-
-        let hit = false;
-
-        const enemiesInRow = gameState.activeEnemies.filter(e => e.row === p.row);
-
-        for (let e of enemiesInRow) {
-            const eRect = e.element.getBoundingClientRect();
-
-            if (
-                pRect.right >= eRect.left + 20 &&
-                pRect.left <= eRect.right &&
-                pRect.bottom >= eRect.top &&
-                pRect.top <= eRect.bottom
-            ) {
-                damageEnemy(e, GAME_CONFIG.cannonDamage);
-                hit = true;
-                break;
-            }
+        const projectile = gameState.activeProjectiles[i];
+        projectile.xOffset += GAME_CONFIG.projectileSpeed * delta * 60;
+        const enemy = enemiesByRow[projectile.row].find(candidate =>
+            candidate.hp > 0 && projectileHitsEnemy(projectile, candidate, columnPitch)
+        );
+        if (enemy) {
+            damageEnemy(enemy, GAME_CONFIG.cannonDamage);
+            if (!gameState.isInvasionActive || gameState.gameEnded) return;
         }
-
-        if (hit || drawX * getAppScale() > window.innerWidth) {
-            p.element.remove();
+        if (enemy || (projectile.column + 0.5) * columnPitch + projectile.xOffset > projectileLimit) {
             gameState.activeProjectiles.splice(i, 1);
         }
     }
 }
 
 function clearProjectiles() {
-    gameState.activeProjectiles.forEach(p => p.element.remove());
     gameState.activeProjectiles = [];
 }
 
-// ------------------------- Game Loop -------------------------
+function stopEnemyAttack(enemy) {
+    cancelGameTask(enemy.attackTimer);
+    enemy.attackTimer = null;
+}
 
-function updateGameLoop() {
-    const now = Date.now();
-    let delta = (now - lastFrameTime) / 1000;
-    lastFrameTime = now;
-
-    // Zabezpieczenie przed teleportacją (maksymalna delta 0.1s)
-    if (delta > 0.1) delta = 0.1;
-
-    if (gameState.gamePaused) {
-        requestAnimationFrame(updateGameLoop);
+function attackTile(enemyId, tileId, timerId, now) {
+    const enemy = gameState.activeEnemies.find(candidate => candidate.id === enemyId);
+    const tile = gameState.tiles[tileId];
+    if (!gameState.isInvasionActive || !enemy || !tile.object) {
+        if (enemy) stopEnemyAttack(enemy);
+        else cancelGameTask(timerId);
         return;
     }
-
-    if (gameState.isInvasionActive) {
-        const tiles = document.querySelectorAll('.game-tile');
-
-        gameState.activeEnemies.forEach(enemy => {
-            // Reset ataku jeśli tile jest wolny
-            const targetTile = tiles[(enemy.row * 10) + enemy.currentCol];
-            if (enemy.isAttacking && targetTile && !isTileOccupied(targetTile)) {
-                enemy.isAttacking = false;
-            }
-
-            if (enemy.isAttacking) return;
-
-            const speed = enemy.type === 'boss' ? GAME_CONFIG.bossSpeed : GAME_CONFIG.enemySpeed;
-
-            // Przeliczenie ruchu względem deltaTime
-            enemy.offsetX += speed * delta * 60;
-
-            enemy.element.style.transform =
-                `translate(-50%, -50%) translateX(-${enemy.offsetX}px)`;
-
-            const colShift = Math.floor(
-                (enemy.offsetX + 55) / enemy.element.parentElement.offsetWidth
-            );
-
-            const newCol = 9 - colShift;
-
-            if (newCol < 0) {
-                gameOver();
-                return;
-            }
-
-            if (newCol !== enemy.currentCol) {
-                const nextTile = tiles[(enemy.row * 10) + newCol];
-
-                if (nextTile && isTileOccupied(nextTile)) {
-                    enemy.isAttacking = true;
-
-                    const attackInterval = enemy.type === 'boss' ? 2500 : 1200;
-                    const attackDamage = enemy.type === 'boss' ? 2.5 : 1;
-
-                    const attackInt = setInterval(() => {
-                        if (
-                            !gameState.isInvasionActive ||
-                            !gameState.activeEnemies.includes(enemy)
-                        ) {
-                            clearInterval(attackInt);
-                            enemy.isAttacking = false;
-                            return;
-                        }
-
-                        if (gameState.gamePaused) return;
-
-                        const hp = parseFloat(nextTile.dataset.hp) || 0;
-
-                        if (hp > 0) {
-                            nextTile.dataset.hp = Math.max(0, hp - attackDamage);
-
-                            nextTile.style.opacity = "0.7";
-                            setTimeout(() => nextTile.style.opacity = "1", 100);
-                        }
-
-                        if (parseFloat(nextTile.dataset.hp) <= 0) {
-                            nextTile.replaceChildren();
-                            clearTileData(nextTile);
-
-                            enemy.isAttacking = false;
-                            clearInterval(attackInt);
-                        }
-                    }, attackInterval);
-                }
-
-                enemy.currentCol = newCol;
-            }
-        });
-
-        updateCannons();
-        updateProjectiles();
+    const object = tile.object;
+    object.hp -= enemy.type === 'boss' ? 2.5 : 1;
+    if (object.hp <= 0) {
+        tile.object = null;
+        stopEnemyAttack(enemy);
+    } else {
+        object.lastDamagedAt = now;
     }
-
-    updateTreeGrowth();
-    requestAnimationFrame(updateGameLoop);
 }
 
-// ------------------------- Level -------------------------
+function updateGameLoop(delta, now = getGameTime()) {
+    if (gameState.gamePaused || gameState.gameEnded || !gameState.isInvasionActive) return;
+    const width = gameState.geometry.tileWidth;
+    const contact = Math.min(COLLISION_GEOMETRY.contact, width / 2);
+    for (const enemy of gameState.activeEnemies) {
+        const rowStart = enemy.row * GAME_CONFIG.columns;
+        if (enemy.attackTimer !== null) {
+            if (gameState.tiles[rowStart + enemy.currentCol].object) continue;
+            stopEnemyAttack(enemy);
+        }
+
+        const speed = enemy.type === 'boss' ? GAME_CONFIG.bossSpeed : GAME_CONFIG.enemySpeed;
+        enemy.offsetX += speed * delta * 60;
+        const newCol = GAME_CONFIG.columns - 1 - Math.floor((enemy.offsetX + contact) / width);
+        if (newCol < 0) {
+            gameOver();
+            return;
+        }
+        for (let col = enemy.currentCol; col >= newCol; col--) {
+            const tile = gameState.tiles[rowStart + col];
+            if (!tile.object) continue;
+            enemy.currentCol = col;
+            enemy.offsetX = Math.max(0, (GAME_CONFIG.columns - 1 - col) * width - contact);
+            enemy.attackTimer = scheduleGameTask('attack', enemy.type === 'boss' ? 2500 : 1200, true,
+                { enemyId: enemy.id, tileId: tile.id }, now);
+            break;
+        }
+        if (enemy.attackTimer === null) enemy.currentCol = newCol;
+    }
+    updateCannons(now);
+    if (gameState.activeProjectiles.length) updateProjectiles(delta);
+}
 
 function handleLevelComplete() {
+    if (!gameState.isInvasionActive || gameState.gameEnded) return;
     gameState.isInvasionActive = false;
     clearProjectiles();
-
-    const menuBtn = document.getElementById('menuGameButton');
-    if (menuBtn) menuBtn.style.color = '';
-
-    if (gameState.level >= 10) {
-        gameWin();
-    } else {
-        gameState.level++;  
-
+    if (gameState.level >= 10) gameWin();
+    else {
+        gameState.level++;
         gameState.prepTime = 120;
-
-        document.querySelector('.topBar')?.classList.remove('is-invasion');
-
-        updateTimerUI();
-        updateShopButtons();
     }
-}
-
-// ------------------------- Helpers -------------------------
-
-function isTileOccupied(tile) {
-    return tile.dataset.hasGrass === 'true' ||
-        tile.dataset.hasStone === 'true' ||
-        tile.dataset.hasTree === 'true' ||
-        tile.dataset.isGrowing === 'true' ||
-        tile.dataset.hasFence === 'true' ||
-        tile.dataset.hasCannon === 'true' ||
-        tile.querySelector('.enemy-worm') !== null;
 }

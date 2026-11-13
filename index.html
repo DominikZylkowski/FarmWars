@@ -63,7 +63,7 @@
     <div class="topBar__right-side">
         <div class="topBar__resources">
             <span class="topBar__resource topBar__resource--wood">
-                <img class="topBar__resource-icon" src="./assets/images/tree.png" alt="Drewno">
+                <img class="topBar__resource-icon" src="./assets/images/Tree.png" alt="Drewno">
                 <span class="topBar__resource-value topBar__resource-wood-count">10</span>
             </span>
             <span class="topBar__resource topBar__resource--seeds">
@@ -131,13 +131,20 @@
         <button class="menu__button" id="startGameButton" type="button">ZAGRAJ</button>
         <button class="ranking__button" id="rankingButton" type="button">RANKING</button>
         
-        <!-- Opcje dźwięku -->
-        <div class="volume-settings">
-            <div class="volume-control">
-                <label>Czekadełko</label>
-                <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="0.5">
+        <section class="speed-settings" aria-labelledby="gameSpeedLabel">
+            <div class="speed-control">
+                <label id="gameSpeedLabel" for="volumeRange">Szybkość rozgrywki</label>
+                <output id="gameSpeedValue" for="volumeRange">1,00×</output>
+                <input type="range" id="volumeRange" min="0.75" max="3" step="0.25" value="1" aria-describedby="gameDifficultyValue">
+                <p class="speed-control__current">Poziom: <strong id="gameDifficultyValue">Normal</strong></p>
             </div>
-        </div>
+            <div class="speed-bands" aria-label="Przedziały poziomów trudności">
+                <div class="speed-bands__band" data-speed-level="Easy"><strong>Easy</strong><span>0,75×</span></div>
+                <div class="speed-bands__band" data-speed-level="Normal"><strong>Normal</strong><span>1,00× – 1,50×</span></div>
+                <div class="speed-bands__band" data-speed-level="Hard"><strong>Hard</strong><span>1,75× – 2,25×</span></div>
+                <div class="speed-bands__band" data-speed-level="Very Hard"><strong>Very Hard</strong><span>2,50× – 3,00×</span></div>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -145,10 +152,14 @@
 
 <!-- Scripts -->
  <script src="./js/config.js"></script>
+ <script src="./js/runtime.js"></script>
  <script src="./js/score.js"></script>
  <script src="./js/ranking.js"></script>
  <script src="./js/ranking_ui.js"></script>
+ <script src="./js/game_model.js"></script>
  <script src="./js/war_logic.js"></script>
+ <script src="./js/game_view.js"></script>
+ <script src="./js/economy_client.js"></script>
 <script src="./js/main.js"></script>
 
 </body>

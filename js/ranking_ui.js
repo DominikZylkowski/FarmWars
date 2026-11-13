@@ -64,7 +64,9 @@ async function showRanking() {
     title.id = 'rankingTitle';
     title.textContent = 'Ranking';
     const description = document.createElement('p');
-    description.textContent = 'Najlepszy wynik każdego lokalnego profilu. Wygrane i przegrane razem.';
+    description.textContent = onlineRanking
+        ? 'Prywatne wyniki tej sesji. Wyniki zgłoszone przez przeglądarkę pozostają niezweryfikowane.'
+        : 'Najlepszy wynik każdego lokalnego profilu. Wygrane i przegrane razem.';
     const content = document.createElement('div');
     content.className = 'ranking__content';
     content.textContent = 'Wczytywanie…';

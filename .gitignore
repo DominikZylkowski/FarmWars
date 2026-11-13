@@ -1,5 +1,5 @@
-styles/css/*
 /node_modules/*
+/dist/
 npm-debug.log
 *.js.map
 *.css.map

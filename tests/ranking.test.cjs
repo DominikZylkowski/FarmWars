@@ -12,12 +12,18 @@ const context = vm.createContext({
         setItem(key, value) { if (blocked || writeBlocked) throw new Error(); stored = value; }
     } }
 });
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/ranking.js'), 'utf8'), context);
+for (const file of ['config.js', 'ranking.js']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file), 'utf8'), context);
+}
 const run = code => vm.runInContext(code, context);
 
 (async () => {
     assert.equal(await run('rankingRepository.getLastNickname()'), '');
-    run(`const result = { runId: 'run-1', totalScore: 0, status: 'lost', finishedAt: new Date().toISOString(), points: { time: 0 } };`);
+    run(`const result = { schemaVersion: 1, rulesetId: GAME_CONFIG.rulesetId,
+        runId: 'run-1', totalScore: 0, status: 'lost', finishedAt: new Date().toISOString(),
+        activeTimeSeconds: 0, itemsCrafted: 0, enemiesDefeated: 0, resourcesCollected: 0,
+        itemsByType: {}, enemiesByType: {}, resourcesByType: {},
+        points: { time: 0, items: 0, enemies: 0, resources: 0 } };`);
     await assert.rejects(run(`rankingRepository.saveResult('ab', result)`));
     await assert.rejects(run(`rankingRepository.saveResult('x'.repeat(21), result)`));
     await assert.rejects(run(`rankingRepository.saveResult('Test', { ...result, status: 'active' })`));
@@ -26,10 +32,10 @@ const run = code => vm.runInContext(code, context);
     assert.equal(first.totalScore, 0, 'Przegrana z zerowym wynikiem może być zapisana');
     assert.ok(first.playerId);
     await assert.rejects(run(`rankingRepository.saveResult('Inny', result)`), /już zapisany/);
-    const second = await run(`rankingRepository.saveResult('Gracz', { ...result, runId: 'run-2', status: 'won', totalScore: 50 })`);
+    const second = await run(`rankingRepository.saveResult('Gracz', { ...result, runId: 'run-2', status: 'won', totalScore: 50, activeTimeSeconds: 50, points: { ...result.points, time: 50 } })`);
     assert.equal(first.playerId, second.playerId);
-    await run(`rankingRepository.saveResult('<img src=x>', { ...result, runId: 'run-3', totalScore: 100 })`);
-    await run(`rankingRepository.saveResult('Remis', { ...result, runId: 'run-4', totalScore: 50 })`);
+    await run(`rankingRepository.saveResult('<img src=x>', { ...result, runId: 'run-3', totalScore: 100, activeTimeSeconds: 100, points: { ...result.points, time: 100 } })`);
+    await run(`rankingRepository.saveResult('Remis', { ...result, runId: 'run-4', totalScore: 50, activeTimeSeconds: 50, points: { ...result.points, time: 50 } })`);
     const history = await run('rankingRepository.getHistory()');
     assert.equal(history.length, 4);
     assert.equal(new Set(history.map(result => result.playerId)).size, 3);
@@ -39,6 +45,7 @@ const run = code => vm.runInContext(code, context);
     assert.equal(await run('rankingRepository.getLastNickname()'), 'Remis');
     // Ponowne wczytanie modułu zachowuje historię i blokadę duplikatów.
     const reloaded = vm.createContext({ window: context.window });
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/config.js'), 'utf8'), reloaded);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/ranking.js'), 'utf8'), reloaded);
     assert.equal((await vm.runInContext('rankingRepository.getHistory()', reloaded)).length, 4);
     reloaded.result = first;
@@ -104,17 +111,25 @@ const run = code => vm.runInContext(code, context);
     assert.equal(table.children[1].children[0].children[3].textContent, 'Przegrana');
     dialog.close();
     assert.equal(find(body, 'rankingDialog'), undefined);
+    const remainingNodes = body.children.length;
+    for (let i = 0; i < 20; i++) {
+        await run('showRanking()');
+        find(body, 'rankingDialog').close();
+    }
+    assert.equal(body.children.length, remainingNodes, 'Zamknięte okna rankingu nie pozostają w DOM');
     // Pełna ścieżka porażki: prawdziwe gameOver(), podsumowanie i formularz.
     context.window.addEventListener = () => {};
     context.document.addEventListener = () => {};
     context.document.querySelector = () => null;
     context.document.querySelectorAll = () => [];
     context.performance = { now: () => 0 };
-    for (const file of ['config.js', 'score.js', 'war_logic.js', 'main.js']) {
+    context.requestAnimationFrame = () => 1;
+    context.cancelAnimationFrame = () => {};
+    for (const file of ['runtime.js', 'score.js', 'game_model.js', 'war_logic.js', 'game_view.js', 'economy_client.js', 'main.js']) {
         run(fs.readFileSync(path.join(__dirname, '../js', file), 'utf8'));
     }
     for (const endGame of ['gameOver', 'gameWin']) {
-        run(`gameState.gameEnded = false; gameState.gameStarted = true; startScore(); setGamePaused(false); ${endGame}();`);
+        run(`gameState.gameEnded = false; gameState.gameStarted = true; startScore(); setGamePaused(false); ${endGame}(); renderEndScreenIfNeeded();`);
         const endScreen = find(body, 'endScreen');
         assert.ok(endScreen, 'Ekran końcowy został wyrenderowany');
         const endForm = endScreen.children.find(child => child.tagName === 'form');

@@ -1,10 +1,7 @@
 // ------------------------- Skalowanie całej gry -------------------------
-function getAppScale() {
-    return 1;
-}
-
 function updateAppScale() {
     fitBoardToViewport();
+    renderGameState();
 }
 
 function fitBoardToViewport() {
@@ -13,6 +10,7 @@ function fitBoardToViewport() {
     if (!grid || !board) return;
 
     const house = board.querySelector('.game-board__house-slot');
+    if (!house) return;
     const gap = parseFloat(getComputedStyle(board).columnGap) || 0;
     const availableWidth = Math.max(0, board.clientWidth - house.offsetWidth - gap);
     const width = Math.min(availableWidth, board.clientHeight * GAME_CONFIG.columns / GAME_CONFIG.rows);
@@ -20,6 +18,7 @@ function fitBoardToViewport() {
 }
 
 let appScaleResizeFrame = 0;
+let selectedItemToPlace = null;
 
 function scheduleAppScaleUpdate() {
     if (appScaleResizeFrame) cancelAnimationFrame(appScaleResizeFrame);
@@ -30,13 +29,21 @@ function scheduleAppScaleUpdate() {
 }
 
 function setGamePaused(shouldPause, options = {}) {
+    if (serverGame) return serverGame.pause(shouldPause);
     if (gameState.gameEnded) return;
-    const { showMenu = true } = options;
-    const menu = document.getElementById('gameMenu');
+    if (!shouldPause && (!gameState.gameStarted || gameState.tutorialVisible || document.hidden)) return;
+    if (gameState.gamePaused === shouldPause) return;
+    setSimulationPaused(shouldPause, performance.now());
+    if (gameState.gamePaused) stopGameFrame();
+    else scheduleGameFrame();
+    renderGameState();
+    if (!gameState.gameEnded) syncPauseView(shouldPause, options.showMenu ?? true);
+}
 
-    setScoreClockRunning(false);
-    gameState.gamePaused = shouldPause;
-    setScoreClockRunning(!shouldPause && gameState.gameStarted && !gameState.tutorialVisible);
+function syncPauseView(shouldPause, showMenu) {
+    const menu = document.getElementById('gameMenu');
+    const app = document.getElementById('appScale');
+    app?.classList[shouldPause ? 'add' : 'remove']('app-scale--paused');
     updateScoreUI();
 
     if (shouldPause) {
@@ -51,10 +58,7 @@ function setGamePaused(shouldPause, options = {}) {
             controls.forEach(c => c.style.zIndex = '10000001');
         }
 
-        document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
-            const growthStart = Number(tile.dataset.growthStart) || Date.now();
-            tile.dataset.pausedTime = String(Date.now() - growthStart);
-        });
+        selectedItemToPlace = null;
         return;
     }
 
@@ -68,24 +72,22 @@ function setGamePaused(shouldPause, options = {}) {
         const controls = menu.querySelectorAll('button, input, select');
         controls.forEach(c => c.style.zIndex = '');
     }
-
-    lastFrameTime = Date.now();
-
-    document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
-        const pausedTime = Number(tile.dataset.pausedTime) || 0;
-        tile.dataset.growthStart = String(Date.now() - pausedTime);
-        tile.dataset.pausedTime = '0';
-    });
 }
 
 function togglePause() {
-    if (gameState.tutorialVisible) return;
+    if (!gameState.gameStarted || gameState.gameEnded || gameState.tutorialVisible) return;
     setGamePaused(!gameState.gamePaused);
 }
 
 window.addEventListener('resize', scheduleAppScaleUpdate);
 window.addEventListener('orientationchange', scheduleAppScaleUpdate);
 window.visualViewport?.addEventListener('resize', scheduleAppScaleUpdate);
+document.addEventListener('visibilitychange', () => {
+    if (!serverGame && document.hidden && gameState.gameStarted && !gameState.gamePaused) setGamePaused(true);
+});
+window.addEventListener('pagehide', () => {
+    if (!serverGame && gameState.gameStarted && !gameState.gamePaused) setGamePaused(true);
+});
 
 // ------------------------- System Przeciągania (Drag & Drop) -------------------------
 function handleDragStart(e) {
@@ -97,7 +99,7 @@ function handleDragStart(e) {
         return;
     }
 
-    gameState.selectedItemToPlace = itemId;
+    selectedItemToPlace = itemId;
     e.dataTransfer.setData('text/plain', itemId);
     e.dataTransfer.effectAllowed = 'move';
     updateVisualHighlights();
@@ -110,10 +112,10 @@ function handleDragOver(e) {
 function handleDrop(e) {
     e.preventDefault();
     const tile = e.target.closest('.game-tile');
-    if (tile && gameState.selectedItemToPlace) {
-        placeSelectedItemOnTile(tile);
+    if (tile && selectedItemToPlace) {
+        handlePlayerAction({ type: 'place', tileId: tileIds.get(tile), item: selectedItemToPlace });
     }
-    gameState.selectedItemToPlace = null;
+    selectedItemToPlace = null;
     updateVisualHighlights();
 }
 
@@ -130,7 +132,7 @@ const RESOURCE_LABELS = {
 };
 
 const RESOURCE_ICONS = {
-    wood: 'assets/images/tree.png',
+    wood: 'assets/images/Tree.png',
     stone: 'assets/images/stone.png',
     seeds: 'assets/images/grass.png'
 };
@@ -238,217 +240,78 @@ function skipTutorial() {
 
 function handleStartButton() {
     if (!gameState.gameStarted) {
+        if (gameState.gameEnded || document.hidden) return;
+        captureBoardGeometry();
         startScore();
+        rankingRepository.startRun(scoreState.runId)?.catch(() => {
+            // Formularz końcowy ponawia rejestrację i pokazuje ewentualny błąd.
+        });
+        gameState.gameStarted = true;
         updateScoreUI();
         const menu = document.getElementById('gameMenu');
         if (menu) menu.classList.add('is-hidden');
-        showTutorial();
+        if (gameState.tutorialCompleted) setGamePaused(false);
+        else showTutorial();
         return;
     }
 
     togglePause();
 }
 
-function canAfford(item) {
-    const p = shopItems[item];
-    if (!p) return false;
-    return !((p.seeds && gameState.seedCount < p.seeds) || 
-             (p.wood && gameState.woodCount < p.wood) || 
-             (p.stone && gameState.stoneCount < p.stone));
-}
-
-function placeSelectedItemOnTile(tile) {
-    const item = gameState.selectedItemToPlace;
-    if (gameState.gamePaused || gameState.gameEnded || !tile || !item || isTileOccupied(tile) || !canAfford(item)) return;
-
-    const price = shopItems[item];
-    if (price.wood) gameState.woodCount -= price.wood;
-    if (price.stone) gameState.stoneCount -= price.stone;
-    if (price.seeds) gameState.seedCount -= price.seeds;
-
-    const el = document.createElement('div');
-    el.className = `game-tile__placed-item game-tile__item--${item}`;
-    el.style.backgroundImage = `url('${itemImages[item]}')`;
-    tile.appendChild(el);
-
-    if (item === 'seedling') {
-        tile.dataset.isGrowing = 'true';
-        tile.dataset.hp = "2";
-        tile.dataset.growthStart = Date.now();
-        tile.dataset.growthDuration = GAME_CONFIG.treeGrowthTime;
-        tile.dataset.pausedTime = "0";
-    } else {
-        if (item === 'cannon') {
-            tile.dataset.hasCannon = 'true';
-            tile.dataset.lastShot = "0"; 
-        } else tile.dataset.hasFence = 'true';
-        tile.dataset.hp = GAME_CONFIG.hpValues[item] || 10;
-    }
-
-    awardScoreForEvent('items', item, el);
-    updateScoreUI();
-    updateResourcesUI();
-}
-
-// ------------------------- Damage (Poprawione o blokadę pauzy) -------------------------
-function damageEnemy(enemy, amount) {
-    if (gameState.gamePaused || gameState.gameEnded || !enemy || !gameState.activeEnemies.includes(enemy)) return;
-
-    enemy.hp -= amount;
-
-    const hpPercent = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
-    const hpBarFill = enemy.element.firstChild;
-
-    if (hpBarFill) {
-        hpBarFill.style.width = `${hpPercent}%`;
-        if (hpPercent > 60) {
-            hpBarFill.style.background = GAME_CONFIG.hpColors.high;
-        } else if (hpPercent > 30) {
-            hpBarFill.style.background = GAME_CONFIG.hpColors.medium;
-        } else {
-            hpBarFill.style.background = GAME_CONFIG.hpColors.low;
-        }
-    }
-
-    if (enemy.hp <= 0) {
-        awardScoreForEvent('enemies', enemy.type, enemy);
-        updateScoreUI();
-        enemy.element.remove();
-        gameState.activeEnemies = gameState.activeEnemies.filter(e => e !== enemy);
-        gameState.enemiesDefeated++;
-
-        updateTimerUI();
-
-        if (
-            gameState.enemiesDefeated >= gameState.totalEnemiesInWave &&
-            gameState.activeEnemies.length === 0
-        ) {
-            handleLevelComplete();
-        }
-    }
-}
-
-// NOWA FUNKCJA: Kontrola wzrostu drzew
-function updateTreeGrowth() {
-    if (gameState.gamePaused) return;
-
-    document.querySelectorAll('[data-is-growing="true"]').forEach(tile => {
-        const growthStart = parseInt(tile.dataset.growthStart);
-        const duration = parseInt(tile.dataset.growthDuration);
-        const now = Date.now();
-
-        if (now - growthStart >= duration) {
-            growToTree(tile);
-        }
-    });
-}
-
-function growToTree(tile) {
-    if (tile.dataset.isGrowing === 'true') {
-        tile.innerHTML = '';
-        const tree = document.createElement('div');
-        tree.className = `game-tile__placed-item game-tile__item--tree`;
-        tree.style.backgroundImage = `url('${itemImages.tree}')`;
-        tile.appendChild(tree);
-        tile.dataset.isGrowing = 'false'; 
-        tile.dataset.hasTree = 'true';
-        tile.dataset.hp = GAME_CONFIG.hpValues.tree;
-    }
-}
-
-// ------------------------- Zasoby i Timer -------------------------
-function getRandomResourceSize() {
-    const rand = Math.random();
-    if (rand < 0.5) return 1;
-    if (rand < 0.8) return 2;
-    return 3;
-}
-
-function spawnRandomResource(type) {
-    const allTiles = Array.from(document.querySelectorAll('.game-tile'));
-    const freeTiles = allTiles.filter(tile => !isTileOccupied(tile));
-
-    if (freeTiles.length > 0) {
-        const randomTile = freeTiles[Math.floor(Math.random() * freeTiles.length)];
-        const size = getRandomResourceSize();
-        randomTile.dataset.size = size;
-
-        if (type === 'grass') {
-            randomTile.dataset.hasGrass = 'true';
-            const g = document.createElement('div'); 
-            g.className = `game-tile__grass game-tile__grass--size-${size}`;
-            randomTile.appendChild(g);
-        } else {
-            randomTile.dataset.hasStone = 'true';
-            const s = document.createElement('div'); 
-            s.className = `game-tile__stone game-tile__stone--size-${size}`;
-            randomTile.appendChild(s);
-        }
-    }
-}
-
-function spawnInitialResources() {
-    for (let i = 0; i < GAME_CONFIG.baseGrassCount; i++) spawnRandomResource('grass');
-    for (let i = 0; i < GAME_CONFIG.baseStoneCount; i++) spawnRandomResource('stone');
-}
-
-function isTileOccupied(tile) {
-    return tile.dataset.hasGrass === 'true' || tile.dataset.hasStone === 'true' || 
-           tile.dataset.hasTree === 'true' || tile.dataset.isGrowing === 'true' ||
-           tile.dataset.hasFence === 'true' || tile.dataset.hasCannon === 'true';
-}
-
 function updateTimerUI() {
     const statusBox = document.getElementById('statusContainer');
     if (!statusBox) return;
+    const speed = `<span class="topBar__speed" id="gameSpeedStatus">Speed: ${formatGameSpeed(gameState.gameSpeed)}</span>`;
 
     if (gameState.isInvasionActive) {
-        statusBox.innerHTML = `POKONANO: <span id="defeatedCount">${gameState.enemiesDefeated}</span> / ${gameState.totalEnemiesInWave} <span style="margin-left:20px; color:#ffd700;">POZIOM: ${gameState.level}</span>`;
+        statusBox.innerHTML = `POKONANO: <span id="defeatedCount">${gameState.enemiesDefeated}</span> / ${gameState.totalEnemiesInWave} <span style="margin-left:20px; color:#ffd700;">POZIOM: ${gameState.level}</span>${speed}`;
     } else {
         const min = Math.floor(gameState.prepTime / 60);
         const sec = gameState.prepTime % 60;
         statusBox.innerHTML = `
             <span class="topBar__timer-label">ATAK ZA: <strong id="prepTimer">${min}:${sec < 10 ? '0' : ''}${sec}</strong></span>
             <span style="margin-left:20px; color:#ffd700; font-size: 1.6rem;">POZIOM: ${gameState.level}</span>
+            ${speed}
         `;
     }
 }
 
-function startPrepTimer() {
-    setInterval(() => {
-        if (!gameState.gamePaused) {
-            if (!gameState.isInvasionActive) {
-                if (gameState.prepTime > 0) {
-                    gameState.prepTime--;
-                    updateTimerUI();
-                } else handleInvasionStart();
-            }
-            updateTreeGrowth();
-        }
-    }, 1000);
+function formatGameSpeed(speed) {
+    return speed.toFixed(2).replace('.', ',') + '×';
 }
 
-// ------------------------- UI i Interakcja -------------------------
-function handleGridClick(event) {
-    if (gameState.gamePaused) return;
-    const tile = event.target.closest('.game-tile');
-    if (!tile) return;
-
-    const size = parseInt(tile.dataset.size) || 1;
-    if (tile.dataset.hasGrass === 'true') {
-        tile.replaceChildren(); tile.dataset.hasGrass = 'false';
-        gameState.seedCount += size;
-    } else if (tile.dataset.hasStone === 'true') {
-        tile.replaceChildren(); tile.dataset.hasStone = 'false';
-        gameState.stoneCount += size;
-    } else if (tile.dataset.hasTree === 'true') {
-        const tree = tile.querySelector('.game-tile__item--tree');
-        tile.replaceChildren(); tile.dataset.hasTree = 'false';
-        gameState.woodCount += 2;
-        awardScoreForEvent('resources', 'tree', tree);
-        updateScoreUI();
+function updateGameSpeedUI() {
+    const value = formatGameSpeed(gameState.gameSpeed);
+    const difficulty = getGameDifficulty();
+    const slider = document.getElementById('volumeRange');
+    if (slider) {
+        slider.value = String(gameState.gameSpeed);
+        slider.setAttribute('aria-valuetext', `${value} — ${difficulty}`);
     }
-    updateResourcesUI();
+    const output = document.getElementById('gameSpeedValue');
+    if (output) output.textContent = value;
+    const level = document.getElementById('gameDifficultyValue');
+    if (level) level.textContent = difficulty;
+    document.querySelectorAll('[data-speed-level]').forEach(band => {
+        band.classList[band.dataset.speedLevel === difficulty ? 'add' : 'remove']('is-active');
+    });
+    const app = document.getElementById('appScale');
+    app?.style.setProperty('--game-speed', String(gameState.gameSpeed));
+    updateTimerUI();
+}
+
+function handleGridClick(event) {
+    const tile = event.target.closest('.game-tile');
+    if (tile) handlePlayerAction({ type: 'collect', tileId: tileIds.get(tile) });
+}
+
+function setGameSpeed(speed) {
+    if (serverGame) return serverGame.speed(speed);
+    if (!changeGameSpeed(speed, performance.now())) return false;
+    safeSetStoredValue('gameSpeed', speed);
+    updateGameSpeedUI();
+    renderGameState();
+    return true;
 }
 
 function updateShopButtons() {
@@ -496,42 +359,6 @@ function calculateMaxCraft(item) {
     return limits.length > 0 ? Math.min(...limits) : 0;
 }
 
-function clearTileData(tile) {
-    tile.dataset.hasGrass = 'false'; tile.dataset.hasStone = 'false';
-    tile.dataset.hasTree = 'false'; tile.dataset.hasFence = 'false';
-    tile.dataset.hasCannon = 'false'; tile.dataset.isGrowing = 'false'; 
-    tile.dataset.hp = '0'; tile.dataset.size = '0';
-    tile.dataset.lastShot = '0'; 
-    tile.style.opacity = '';
-    delete tile.dataset.growthStart;
-    delete tile.dataset.growthDuration;
-    delete tile.dataset.pausedTime;
-}
-
-function gameOver() {
-    if (gameState.gameEnded) return;
-    finishScore('lost');
-    updateScoreUI();
-    gameState.gameEnded = true;
-    gameState.gamePaused = true;
-    gameState.isInvasionActive = false;
-    clearProjectiles(); 
-    document.querySelector('.topBar')?.classList.remove('is-invasion');
-    showEndScreen("KONIEC GRY!", "Robaki dostały się do Twojego domu!", "#ff4444", "SPRÓBUJ PONOWNIE");
-}
-
-function gameWin() {
-    if (gameState.gameEnded) return;
-    finishScore('won');
-    updateScoreUI();
-    gameState.gameEnded = true;
-    gameState.gamePaused = true;
-    gameState.isInvasionActive = false;
-    clearProjectiles(); 
-    document.querySelector('.topBar')?.classList.remove('is-invasion');
-    showEndScreen("ZWYCIĘSTWO!", "Obroniłeś ogród przed inwazją!", "#2ecc71", "ZAGRAJ JESZCZE RAZ");
-}
-
 function showEndScreen(title, text, color, btnText) {
     document.getElementById('endScreen')?.remove();
     const overlay = document.createElement('div');
@@ -560,10 +387,16 @@ function showEndScreen(title, text, color, btnText) {
     score.className = 'end-screen__score';
     score.textContent = `Score: ${formatScore(scoreState.totalScore)} pkt`;
     overlay.append(heading, message, score);
-    mountScoreSaveForm(overlay);
+    if (serverGame?.isOnline) {
+        const saved = document.createElement('p');
+        saved.textContent = 'Wynik zapisany przez serwer w prywatnej historii.';
+        overlay.append(saved, createRankingButton('OTWÓRZ RANKING', showRanking));
+    } else {
+        mountScoreSaveForm(overlay);
+    }
     overlay.append(creator, restartBtn);
     document.body.appendChild(overlay);
-    restartBtn.onclick = () => location.reload();
+    restartBtn.onclick = serverGame?.isOnline ? serverGame.restart : () => location.reload();
 }
 
 // ------------------------- Inicjalizacja i Eventy -------------------------
@@ -573,7 +406,10 @@ function formatScore(value) {
 
 function updateScoreUI() {
     const display = document.getElementById('scoreDisplay');
-    if (display) display.textContent = formatScore(scoreState.totalScore);
+    if (display) {
+        const score = formatScore(scoreState.totalScore);
+        if (display.textContent !== score) display.textContent = score;
+    }
 }
 
 function setupInteraction() {
@@ -597,6 +433,7 @@ function setupInteraction() {
 
             btn.setAttribute('draggable', 'true');
             btn.ondragstart = handleDragStart;
+            btn.ondragend = () => { selectedItemToPlace = null; };
         }
     });
 
@@ -616,53 +453,33 @@ function setupInteraction() {
 
     // Obsługa klawisza ESC
     window.onkeydown = (e) => {
-        if (e.key === 'Escape' && !gameState.tutorialVisible) togglePause();
+        if (e.key === 'Escape' && !e.repeat && !gameState.tutorialVisible) togglePause();
     };
 
-    const volSlider = document.getElementById('volumeRange');
-    if (volSlider) {
-        volSlider.oninput = (e) => {
-            gameState.volume = e.target.value * 100;
-            safeSetStoredValue('gameVolume', gameState.volume);
-        };
+    const speedSlider = document.getElementById('volumeRange');
+    if (speedSlider) {
+        const onSpeedChange = event => setGameSpeed(Number(event.target.value));
+        speedSlider.oninput = onSpeedChange;
+        speedSlider.onchange = onSpeedChange;
     }
-}
-
-function renderBoard() {
-
-    const grid = document.getElementById('gameGrid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    for (let i = 0; i < 50; i++) {
-        const tile = document.createElement('div');
-        tile.className = `game-tile ${GAME_CONFIG.tileClassNames[(Math.floor(i/10) + (i%10)) % 2]}`;
-        clearTileData(tile);
-        grid.appendChild(tile);
-    }
+    updateGameSpeedUI();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    gameState.gameStarted = false;
-    resetScore();
-    updateScoreUI();
-    setInterval(() => {
-        updateScoreTime();
-        updateScoreUI();
-    }, 100);
-    updateAppScale();
+    initializeGameModel(Math.floor(Math.random() * 4294967296), Date.now() - performance.now(), {
+        gameSpeed: getStoredGameSpeed(),
+        tutorialCompleted: safeGetStoredValue('farmwarsTutorialCompleted') === '1'
+    });
     renderBoard();
+    fitBoardToViewport();
     setupInteraction();
-    spawnInitialResources();
-    updateResourcesUI();
-    updateTimerUI();
-    startPrepTimer();
+    if (serverGame) serverGame.setup();
+    else showServerGameLinks();
+    renderGameState();
     scheduleAppScaleUpdate();
     document.fonts?.ready.then(scheduleAppScaleUpdate);
     if (typeof ResizeObserver !== 'undefined') {
         const boardResizeObserver = new ResizeObserver(scheduleAppScaleUpdate);
         boardResizeObserver.observe(document.getElementById('gameBoard'));
     }
-
-    setInterval(() => { if(!gameState.gamePaused && !gameState.isInvasionActive) spawnRandomResource('grass') }, 15000);
-    setInterval(() => { if(!gameState.gamePaused && !gameState.isInvasionActive) spawnRandomResource('stone') }, 25000);
 });

@@ -133,17 +133,20 @@ CREATE TABLE run_scores (
     enemy_points BIGINT UNSIGNED NOT NULL,
     resource_points BIGINT UNSIGNED NOT NULL,
     validation_level ENUM('client_reported', 'consistency_checked', 'replay_verified')
-        NOT NULL DEFAULT 'consistency_checked',
-    is_ranked TINYINT UNSIGNED NOT NULL DEFAULT 1,
+        NOT NULL DEFAULT 'client_reported',
+    is_ranked TINYINT UNSIGNED NOT NULL DEFAULT 0,
     submission_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     saved_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (run_id),
     KEY idx_scores_ranked_score (is_ranked, total_score),
     KEY idx_scores_saved (saved_at),
-    CONSTRAINT fk_scores_run FOREIGN KEY (run_id)
-        REFERENCES game_runs (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_scores_statistics FOREIGN KEY (run_id)
+        REFERENCES run_statistics (run_id) ON DELETE RESTRICT,
     CONSTRAINT chk_score_nickname_length CHECK (CHAR_LENGTH(nickname_snapshot) BETWEEN 3 AND 20),
     CONSTRAINT chk_score_ranked CHECK (is_ranked IN (0, 1)),
+    CONSTRAINT chk_score_ranked_validation CHECK (
+        is_ranked = 0 OR validation_level = 'replay_verified'
+    ),
     CONSTRAINT chk_score_total CHECK (
         total_score = time_points + item_points + enemy_points + resource_points
     ),
@@ -218,34 +221,3 @@ INSERT INTO game_rulesets (id, schema_version, config_json) VALUES (
         }
     }'
 );
-
--- Ponizsze zapytanie jest dokumentacja dla api/ranking/top.php.
--- Jest zakomentowane: import nie uruchamia odczytu ani nie tworzy widoku.
--- ROW_NUMBER wybiera jedna najlepsza partie; RANK liczy miejsca po samym Score.
--- saved_at/run_id stabilizuja wybor remisujacej partii, nie zmieniaja miejsca.
-/*
-WITH candidates AS (
-    SELECT r.player_id, s.run_id, s.nickname_snapshot, s.total_score,
-           r.status, r.finished_at, s.saved_at,
-           ROW_NUMBER() OVER (
-               PARTITION BY r.player_id
-               ORDER BY s.total_score DESC, s.saved_at ASC, s.run_id ASC
-           ) AS player_row
-    FROM run_scores AS s
-    INNER JOIN game_runs AS r ON r.id = s.run_id
-    WHERE s.is_ranked = 1
-      AND r.status IN ('won', 'lost')
-      AND r.player_id IS NOT NULL
-), best AS (
-    SELECT * FROM candidates WHERE player_row = 1
-), ranked AS (
-    SELECT best.*, RANK() OVER (ORDER BY total_score DESC) AS position
-    FROM best
-)
-SELECT player_id, run_id, nickname_snapshot, total_score, status, finished_at, position
-FROM ranked
-ORDER BY total_score DESC, saved_at ASC, run_id ASC
-LIMIT 10;
--- Odczyt pozycji gracza: w ostatnim SELECT zamiast LIMIT 10 dodac
--- WHERE player_id = :player_id. Filtr dopiero PO obliczeniu RANK.
-*/

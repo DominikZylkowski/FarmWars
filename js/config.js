@@ -1,5 +1,7 @@
 // ------------------------- Konfiguracja gry -------------------------
 const GAME_CONFIG = {
+    rulesetId: 'farmwars-1',
+    gameSpeeds: Object.freeze([0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]),
     rows: 5,
     columns: 10,
     tileClassNames: ['game-tile--light', 'game-tile--dark'],
@@ -42,25 +44,56 @@ const GAME_CONFIG = {
     }
 };
 
-const gameState = {
-    level: 1, 
-    seedCount: 0, 
-    stoneCount: 0, 
-    woodCount: 0,
-    prepTime: 120, 
-    gamePaused: true, 
-    gameEnded: false,
-    selectedItemToPlace: null,
-    isInvasionActive: false,
-    enemiesDefeated: 0,
-    totalEnemiesInWave: 0,
-    activeEnemies: [],
-    activeProjectiles: [], 
-    tutorialVisible: false,
-    tutorialStep: 0,
-    tutorialCompleted: safeGetStoredValue('farmwarsTutorialCompleted') === '1',
-    volume: Number(safeGetStoredValue('gameVolume')) || 50
-};
+function createGameState() {
+    return {
+        gameStarted: false,
+        level: 1,
+        seedCount: 0,
+        stoneCount: 0,
+        woodCount: 0,
+        prepTime: 120,
+        gamePaused: true,
+        gameEnded: false,
+        isInvasionActive: false,
+        enemiesDefeated: 0,
+        totalEnemiesInWave: 0,
+        tiles: [],
+        geometry: { tileWidth: 100, columnPitch: 100, projectileLimit: 1000 },
+        activeEnemies: [],
+        activeProjectiles: [],
+        tutorialVisible: false,
+        tutorialStep: 0,
+        tutorialCompleted: false,
+        gameSpeed: 1
+    };
+}
+
+const gameState = createGameState();
+
+function getStoredGameSpeed() {
+    const stored = safeGetStoredValue('gameSpeed');
+    const speed = stored === null ? 1 : Number(stored);
+    return GAME_CONFIG.gameSpeeds.includes(speed) ? speed : 1;
+}
+
+function getGameDifficulty(speed = gameState.gameSpeed) {
+    if (speed === 0.75) return 'Easy';
+    if (speed <= 1.5) return 'Normal';
+    if (speed <= 2.25) return 'Hard';
+    return 'Very Hard';
+}
+
+let localIdSequence = 0;
+
+function createLocalId(prefix) {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        const bytes = crypto.getRandomValues(new Uint8Array(16));
+        return `${prefix}-${Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')}`;
+    }
+    // Zgodność ze starszymi przeglądarkami; identyfikator lokalny, nie token dostępu.
+    return `${prefix}-${Date.now().toString(36)}-${++localIdSequence}-${Math.random().toString(36).slice(2)}`;
+}
 
 function safeGetStoredValue(key) {
     try {
@@ -94,7 +127,7 @@ GAME_CONFIG.hpColors = {
 const itemImages = {
     cannon: 'assets/images/cannon.png',
     seedling: 'assets/images/seedling.png',
-    tree: 'assets/images/tree.png',
+    tree: 'assets/images/Tree.png',
     woodFence: 'assets/images/woodFence.png',
     stoneWall: 'assets/images/stoneWall.png',
     worm_full: 'assets/images/worm_full.png',

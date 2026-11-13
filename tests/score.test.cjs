@@ -26,23 +26,23 @@ run('gameState.gamePaused = false; setScoreClockRunning(true);');
 now += 1350;
 assert.equal(summary().points.time, 2, 'Niepełne sekundy sumują się między pauzami');
 run(`
-    const item = {};
-    const enemy = {};
+    const item = 1;
+    const enemy = 2;
     awardScoreForEvent('items', 'cannon', item);
     awardScoreForEvent('items', 'cannon', item);
     awardScoreForEvent('enemies', 'normal', enemy);
     awardScoreForEvent('enemies', 'normal', enemy);
-    awardScoreForEvent('enemies', 'boss', {});
+    awardScoreForEvent('enemies', 'boss', 3);
 `);
 assert.equal(summary().totalScore, 67);
 assert.equal(summary().itemsCrafted, 1);
 assert.equal(summary().enemiesDefeated, 2);
-run(`gameState.gamePaused = true; awardScoreForEvent('items', 'seedling', {});`);
+run(`gameState.gamePaused = true; awardScoreForEvent('items', 'seedling', 4);`);
 assert.equal(summary().itemsCrafted, 1);
 run(`gameState.gamePaused = false; finishScore('won');`);
 const final = summary();
 now += 100000;
-run(`setScoreClockRunning(true); awardScoreForEvent('enemies', 'boss', {}); finishScore('lost');`);
+run(`setScoreClockRunning(true); awardScoreForEvent('enemies', 'boss', 3); finishScore('lost');`);
 assert.deepEqual(summary(), final, 'Koniec gry zamraża wynik i status');
 run('const snapshot = getScoreSummary(); snapshot.points.items = 999; snapshot.itemsByType.cannon = 999;');
 assert.equal(summary().points.items, 10, 'Eksport nie udostępnia stanu przez referencję');
@@ -58,6 +58,8 @@ assert.equal(summary().totalScore, 1);
 assert.equal(summary().status, 'lost');
 // Sprawdzenie rzeczywistych punktów wejścia gry bez uruchamiania timerów DOMContentLoaded.
 context.window.addEventListener = () => {};
+context.requestAnimationFrame = () => 1;
+context.cancelAnimationFrame = () => {};
 context.document = {
     addEventListener: () => {},
     getElementById: () => null,
@@ -65,7 +67,7 @@ context.document = {
     querySelectorAll: () => [],
     createElement: () => ({ style: {} })
 };
-for (const file of ['war_logic.js', 'main.js']) {
+for (const file of ['runtime.js', 'game_model.js', 'war_logic.js', 'game_view.js', 'economy_client.js', 'main.js']) {
     run(fs.readFileSync(path.join(__dirname, '../js', file), 'utf8'));
 }
 run(`
@@ -74,36 +76,30 @@ run(`
     gameState.gameEnded = false;
     setGamePaused(false);
     gameState.seedCount = 1;
-    gameState.selectedItemToPlace = 'seedling';
-    const tile = { dataset: {}, appendChild() {} };
-    placeSelectedItemOnTile(tile);
-    placeSelectedItemOnTile(tile);
-    placeSelectedItemOnTile({ dataset: {}, appendChild() {} });
+    gameState.tiles = createBoardModel();
+    placeItem(0, 'seedling');
+    placeItem(0, 'seedling');
+    placeItem(1, 'seedling');
 `);
 assert.equal(summary().itemsCrafted, 1, 'Zajęte pole i brak surowców nie przyznają punktów');
 run(`
-    const treeElement = {};
-    const treeTile = {
-        dataset: { hasTree: 'true' },
-        querySelector: () => treeElement,
-        replaceChildren() {}
-    };
-    const treeClick = { target: { closest: () => treeTile } };
-    handleGridClick(treeClick);
-    handleGridClick(treeClick);
-    awardScoreForEvent('resources', 'tree', treeElement);
+    const treeTile = gameState.tiles[1];
+    treeTile.object = createBoardObject('tree', { hp: 5 });
+    const treeId = treeTile.object.id;
+    applyGameAction({ type: 'collect', tileId: treeTile.id });
+    applyGameAction({ type: 'collect', tileId: treeTile.id });
+    awardScoreForEvent('resources', 'tree', treeId);
 `);
 assert.equal(summary().points.resources, 12, 'Zebranie drzewa daje punkty tylko raz');
 assert.equal(summary().resourcesCollected, 1);
 assert.equal(summary().resourcesByType.tree, 1);
 run(`
-    treeTile.dataset.hasTree = 'true';
-    treeTile.querySelector = () => ({});
-    handleGridClick(treeClick);
+    treeTile.object = createBoardObject('tree', { hp: 5 });
+    collectResource(treeTile.id);
 `);
 assert.equal(summary().points.resources, 24, 'Nowe drzewo na tym samym polu także daje punkty');
 run(`
-    const victim = { hp: 2, maxHp: 10, type: 'normal', element: { firstChild: null, remove() {} } };
+    const victim = { id: ++nextEntityId, hp: 2, maxHp: 10, type: 'normal' };
     gameState.activeEnemies = [victim];
     gameState.totalEnemiesInWave = 10;
     damageEnemy(victim, 1);
@@ -118,7 +114,7 @@ now += 20000;
 assert.deepEqual(summary(), paused);
 run('setGamePaused(false); showEndScreen = () => {};');
 now += 250;
-run('gameOver(); togglePause();');
+run('advanceGameTo(performance.now()); gameOver(); togglePause();');
 assert.equal(summary().status, 'lost');
 assert.equal(run('gameState.gamePaused'), true);
 const lost = summary();
