@@ -959,6 +959,11 @@ body {
   .game-board {
     grid-template-columns: clamp(48px, 14vw, 100px) minmax(0, 1fr);
   }
+  .game-tile__grass::after,
+  .game-tile__stone,
+  .game-tile__placed-item {
+    scale: 1.15;
+  }
   .game-core__stage {
     padding: 8px;
   }
@@ -1042,3 +1047,5 @@ body {
     margin-top: 20px;
   }
 }
+
+/*# sourceMappingURL=main.css.map */
