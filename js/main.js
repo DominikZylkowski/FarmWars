@@ -19,6 +19,8 @@ function fitBoardToViewport() {
 
 let appScaleResizeFrame = 0;
 let selectedItemToPlace = null;
+let draggedItem = null;
+const SHOP_SHORTCUTS = ['cannon', 'seedling', 'woodFence', 'stoneWall'];
 
 function scheduleAppScaleUpdate() {
     if (appScaleResizeFrame) cancelAnimationFrame(appScaleResizeFrame);
@@ -99,7 +101,7 @@ function handleDragStart(e) {
         return;
     }
 
-    selectedItemToPlace = itemId;
+    draggedItem = itemId;
     e.dataTransfer.setData('text/plain', itemId);
     e.dataTransfer.effectAllowed = 'move';
     updateVisualHighlights();
@@ -112,17 +114,30 @@ function handleDragOver(e) {
 function handleDrop(e) {
     e.preventDefault();
     const tile = e.target.closest('.game-tile');
-    if (tile && selectedItemToPlace) {
-        handlePlayerAction({ type: 'place', tileId: tileIds.get(tile), item: selectedItemToPlace });
+    if (tile && draggedItem) {
+        handlePlayerAction({ type: 'place', tileId: tileIds.get(tile), item: draggedItem });
     }
-    selectedItemToPlace = null;
+    draggedItem = null;
     updateVisualHighlights();
 }
 
 function updateVisualHighlights() {
-    document.querySelectorAll('.game-tile').forEach(tile => {
-        tile.classList.remove('can-place', 'game-tile--can-place');
-    });
+    const playing = gameState.gameStarted && !gameState.gamePaused &&
+        !gameState.gameEnded && !gameState.tutorialVisible;
+    if (!playing) selectedItemToPlace = null;
+    const item = draggedItem || selectedItemToPlace;
+    const canPlace = playing && item && canAfford(item);
+    for (const id of SHOP_SHORTCUTS) {
+        const button = document.getElementById(`${id}Button`);
+        const pressed = playing && item === id;
+        if (button && button.getAttribute('aria-pressed') !== String(pressed)) {
+            button.setAttribute('aria-pressed', String(pressed));
+        }
+    }
+    for (const tile of gameState.tiles) {
+        tileViews[tile.id]?.element.classList.toggle('game-tile--can-place',
+            Boolean(canPlace && !isTileOccupied(tile)));
+    }
 }
 
 const RESOURCE_LABELS = {
@@ -302,7 +317,13 @@ function updateGameSpeedUI() {
 
 function handleGridClick(event) {
     const tile = event.target.closest('.game-tile');
-    if (tile) handlePlayerAction({ type: 'collect', tileId: tileIds.get(tile) });
+    if (!tile) return;
+    const tileId = tileIds.get(tile);
+    if (selectedItemToPlace && tile.classList.contains('game-tile--can-place')) {
+        handlePlayerAction({ type: 'place', tileId, item: selectedItemToPlace });
+        return;
+    }
+    handlePlayerAction({ type: 'collect', tileId });
 }
 
 function setGameSpeed(speed) {
@@ -422,7 +443,7 @@ function setupInteraction() {
         grid.ondrop = handleDrop;
     }
 
-    Object.keys(shopItems).forEach(item => {
+    SHOP_SHORTCUTS.forEach((item, index) => {
         const btn = document.getElementById(`${item}Button`);
         if (btn) {
             const img = document.createElement('img');
@@ -430,10 +451,19 @@ function setupInteraction() {
             img.alt = item;
             img.className = 'shop-item__product-icon';
             btn.prepend(img);
+            const shortcut = document.createElement('kbd');
+            shortcut.className = 'shop-item__shortcut';
+            shortcut.textContent = String(index + 1);
+            shortcut.setAttribute('aria-hidden', 'true');
+            btn.appendChild(shortcut);
+            btn.setAttribute('aria-keyshortcuts', String(index + 1));
 
             btn.setAttribute('draggable', 'true');
             btn.ondragstart = handleDragStart;
-            btn.ondragend = () => { selectedItemToPlace = null; };
+            btn.ondragend = () => {
+                draggedItem = null;
+                updateVisualHighlights();
+            };
         }
     });
 
@@ -453,7 +483,25 @@ function setupInteraction() {
 
     // Obsługa klawisza ESC
     window.onkeydown = (e) => {
-        if (e.key === 'Escape' && !e.repeat && !gameState.tutorialVisible) togglePause();
+        if (e.repeat) return;
+        if (e.key === 'Escape' && !gameState.tutorialVisible) {
+            if (selectedItemToPlace) {
+                selectedItemToPlace = null;
+                updateVisualHighlights();
+            } else {
+                togglePause();
+            }
+            return;
+        }
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey ||
+            e.target?.closest?.('input, textarea, select, [contenteditable]')) return;
+        const index = ['1', '2', '3', '4'].indexOf(e.key);
+        if (index === -1 || !gameState.gameStarted || gameState.gamePaused ||
+            gameState.gameEnded || gameState.tutorialVisible || draggedItem) return;
+        e.preventDefault();
+        const item = SHOP_SHORTCUTS[index];
+        selectedItemToPlace = selectedItemToPlace === item ? null : item;
+        updateVisualHighlights();
     };
 
     const speedSlider = document.getElementById('volumeRange');

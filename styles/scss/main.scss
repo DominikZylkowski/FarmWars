@@ -218,6 +218,7 @@ body {
   }
 
   &__button {
+    position: relative;
     font-family: inherit;
     font-size: 1rem;
     color: $color-text-dark;
@@ -230,6 +231,11 @@ body {
     transition: 0.15s;
 
     &:hover:not(:disabled) { filter: brightness(1.1); }
+    &[aria-pressed='true'] {
+      border-color: $color-tile-high-bg;
+      background: $color-tile-highlight;
+      outline: 2px solid $color-tile-highlight;
+    }
     &:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 -2px 0 $shadow-standard; }
     
     &:disabled {
@@ -255,6 +261,17 @@ body {
   gap: 3px;
   flex-shrink: 0;
   width: 120px;
+
+  &__shortcut {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    padding: 0 4px;
+    font: inherit;
+    color: $color-tile-highlight;
+    background: $color-tile-high-bg;
+    border-bottom: 2px solid $shadow-standard;
+  }
 
   &__product-icon {
     width: 26px;
@@ -389,6 +406,26 @@ body {
   &--light { filter: brightness(1.1); }
   &--dark { filter: brightness(0.85); }
 
+  &--can-place::after {
+    z-index: 3;
+    content: '+';
+    position: absolute;
+    inset: 2px;
+    display: grid;
+    place-items: center;
+    box-shadow: inset 0 0 0 4px #72ffed, inset 0 0 0 6px #164a43;
+    background: rgba(#24d8c6, 0.48);
+    color: #e1fffb;
+    font-size: clamp(20px, 3vw, 44px);
+    line-height: 1;
+    text-shadow: 2px 2px 0 #164a43;
+    pointer-events: none;
+  }
+
+  &--can-place:hover::after {
+    box-shadow: inset 0 0 0 5px #e1fffb, inset 0 0 0 7px #164a43;
+    background: rgba(#24d8c6, 0.72);
+  }
 
   &.highlight::before {
     content: '';
@@ -900,6 +937,7 @@ body {
   .topBar__menu-btn { padding: 6px 8px; border-width: 2px; }
   .topBar__actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
   .shop-item { width: 100%; min-width: 0; }
+  .shop-item__shortcut { display: none; }
   .topBar__button { width: 100%; min-width: 0; padding: 4px 2px; border-width: 2px; }
   .shop-item__product-icon { width: 20px; height: 20px; margin-right: 3px; }
   .topBar__status { gap: 12px; flex-wrap: wrap; }

@@ -22,6 +22,7 @@ function createGame(storedValues = {}, browser = {}) {
             this.classList = {
                 add: (...names) => { this.className = [...new Set([...this.className.split(' '), ...names])].join(' ').trim(); },
                 remove: (...names) => { this.className = this.className.split(' ').filter(name => !names.includes(name)).join(' '); },
+                toggle: (name, enabled) => this.classList[enabled ? 'add' : 'remove'](name),
                 contains: name => this.className.split(' ').includes(name)
             };
         }
@@ -44,6 +45,7 @@ function createGame(storedValues = {}, browser = {}) {
             this.parent = null;
         }
         setAttribute(name, value) { this[name] = String(value); }
+        getAttribute(name) { return this[name] ?? null; }
         addEventListener(name, handler) { this[`on${name}`] = handler; }
         querySelectorAll(selector) {
             selectorCalls++;

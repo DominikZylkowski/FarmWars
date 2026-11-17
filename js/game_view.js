@@ -164,6 +164,7 @@ function renderGameState() {
         updateResourcesUI();
         updateScoreUI();
     }
+    updateVisualHighlights();
     renderEndScreenIfNeeded();
 }
 
