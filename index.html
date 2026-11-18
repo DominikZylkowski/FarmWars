@@ -31,6 +31,14 @@
 
     <!-- 2. PRZYCISKI AKCJI (SKLEP) -->
     <div class="topBar__actions">
+        <div class="shop-item shop-item--demolition" id="demolitionControl">
+            <button class="topBar__button topBar__remove" id="removeBuildingButton" type="button" aria-pressed="false"
+                aria-label="Rozbiórka" aria-describedby="demolitionHint" title="Usuń obiekt z planszy i odzyskaj 25% kosztu budowy.">
+                <span class="topBar__hammer" aria-hidden="true"></span>
+                <span class="topBar__remove-label">Rozbiórka</span>
+            </button>
+            <span class="shop-item__cost" id="demolitionHint">Zwrot 25%</span>
+        </div>
         <div class="shop-item">
             <button class="topBar__button" id="cannonButton">Armata</button>
             <div class="shop-item__costs" id="cannonCosts"></div>
@@ -56,27 +64,27 @@
     <!-- 3. STATUS (TIMER I POZIOM) - Centralny szeroki panel -->
     <div class="topBar__status" id="statusContainer">
         <span class="topBar__timer-label">
-            ATAK ZA: <strong id="prepTimer">12:46</strong>
+            Atak za <strong id="prepTimer">2:00</strong>
         </span>
         <div class="topBar__level">
-            POZIOM: <span id="levelDisplay">1</span>
+            Fala <strong id="levelDisplay">1</strong>
         </div>
     </div>
 
     <!-- 4. ZASOBY I KONTROLA - Prawa strona -->
     <div class="topBar__right-side">
         <div class="topBar__resources">
-            <span class="topBar__resource topBar__resource--wood">
-                <img class="topBar__resource-icon" src="./assets/images/Tree.png" alt="Drewno">
-                <span class="topBar__resource-value topBar__resource-wood-count">10</span>
-            </span>
             <span class="topBar__resource topBar__resource--seeds">
                 <img class="topBar__resource-icon" src="./assets/images/grass.png" alt="Nasiona">
-                <span class="topBar__resource-value topBar__resource-seeds-count">12</span>
+                <span class="topBar__resource-value topBar__resource-seeds-count">0</span>
+            </span>
+            <span class="topBar__resource topBar__resource--wood">
+                <img class="topBar__resource-icon" src="./assets/images/Tree.png" alt="Drewno">
+                <span class="topBar__resource-value topBar__resource-wood-count">0</span>
             </span>
             <span class="topBar__resource topBar__resource--stone">
                 <img class="topBar__resource-icon" src="./assets/images/stone.png" alt="Kamień">
-                <span class="topBar__resource-value topBar__resource-stone-count">5</span>
+                <span class="topBar__resource-value topBar__resource-stone-count">0</span>
             </span>
         </div>
 

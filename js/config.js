@@ -2,6 +2,8 @@
 const GAME_CONFIG = {
     rulesetId: 'farmwars-1',
     freeLocalPurchases: false,
+    removalRefundRate: 0.25,
+    preparationSeconds: 120,
     gameSpeeds: Object.freeze([0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]),
     rows: 5,
     columns: 10,
@@ -42,6 +44,7 @@ const GAME_CONFIG = {
     },
     enemySpeed: 0.55,
     bossSpeed: 0.45,
+    bossMasterMultiplier: 2.5,
     projectileSpeed: 4, 
     cannonDamage: 3,
     scoring: {
@@ -53,7 +56,7 @@ const GAME_CONFIG = {
 };
 
 function createGameState() {
-    const prepTime = 120;
+    const prepTime = GAME_CONFIG.preparationSeconds;
     const timedStoneDeposits = Math.ceil(prepTime * 1000 / GAME_CONFIG.spawnIntervals.stone) - 1;
     return {
         gameStarted: false,
@@ -149,8 +152,24 @@ const itemImages = {
     tree: 'assets/images/Tree.png',
     woodFence: 'assets/images/woodFence.png',
     stoneWall: 'assets/images/stoneWall.png',
-    quarry: 'assets/images/quarry.png',
-    worm_full: 'assets/images/worm_full.png',
-    worm_boss: 'assets/images/worm_boss.png',
+    quarry: 'assets/images/quarry_lvl_1.png',
     cannonball: 'assets/images/cannonball.png' 
 };
+
+const bossMasterImage = 'assets/images/worm_boss_master.png';
+const quarryLevelImages = [1, 2, 3, 4, 5].map(level => `assets/images/quarry_lvl_${level}.png`);
+const wormSkinImages = [1, 2, 3, 4, 5, 6].map(version => `assets/images/worm_ver_${version}.png`);
+const bossSkinImages = [1, 2, 3, 4, 5].map(version => `assets/images/worm_boss_ver_${version}.png`);
+
+function getEnemyImage(enemy) {
+    if (enemy.type === 'master') return bossMasterImage;
+    const skins = enemy.type === 'boss' ? bossSkinImages : wormSkinImages;
+    // Skin zależy od ID, więc wczytanie zapisu nie zmienia wyglądu ani losowania fal.
+    const mixedId = Math.imul(enemy.id, 0x9e3779b1);
+    return skins[((mixedId ^ (mixedId >>> 16)) >>> 0) % skins.length];
+}
+
+function getBuildingImage(type, level = 1) {
+    if (type === 'quarry') return quarryLevelImages[level - 1] ?? itemImages.quarry;
+    return itemImages[type];
+}

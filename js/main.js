@@ -20,6 +20,7 @@ function fitBoardToViewport() {
 
 let appScaleResizeFrame = 0;
 let selectedItemToPlace = null;
+let removingBuilding = false;
 let draggedItem = null;
 let selectedBuilding = null;
 const SHOP_SHORTCUTS = ['cannon', 'seedling', 'woodFence', 'stoneWall', 'quarry'];
@@ -156,6 +157,7 @@ function handleDragStart(e) {
     }
 
     draggedItem = itemId;
+    removingBuilding = false;
     e.dataTransfer.setData('text/plain', itemId);
     e.dataTransfer.effectAllowed = 'move';
     updateVisualHighlights();
@@ -178,6 +180,17 @@ function handleDrop(e) {
 function updateVisualHighlights() {
     const playing = gameState.gameStarted && !gameState.gamePaused &&
         !gameState.gameEnded && !gameState.tutorialVisible;
+    if (!playing) removingBuilding = false;
+    const removeButton = document.getElementById('removeBuildingButton');
+    if (removeButton) {
+        removeButton.disabled = !playing;
+        if (removeButton.getAttribute('aria-pressed') !== String(removingBuilding)) {
+            removeButton.setAttribute('aria-pressed', String(removingBuilding));
+        }
+        const hint = document.getElementById('demolitionHint');
+        const text = removingBuilding ? 'Wybierz obiekt' : `Zwrot ${GAME_CONFIG.removalRefundRate * 100}%`;
+        if (hint && hint.textContent !== text) hint.textContent = text;
+    }
     if (!playing || (selectedItemToPlace && !canAfford(selectedItemToPlace))) {
         selectedItemToPlace = null;
     }
@@ -193,6 +206,8 @@ function updateVisualHighlights() {
     for (const tile of gameState.tiles) {
         tileViews[tile.id]?.element.classList.toggle('game-tile--can-place',
             Boolean(canPlace && !isTileOccupied(tile)));
+        tileViews[tile.id]?.element.classList.toggle('game-tile--can-remove',
+            removingBuilding && canRemoveBuilding(tile.object));
     }
 }
 
@@ -231,6 +246,7 @@ function renderShopCosts() {
         Object.entries(cost).forEach(([resource, amount]) => {
             const row = document.createElement('div');
             row.className = 'shop-item__cost';
+            row.dataset.resource = resource;
 
             const icon = document.createElement('img');
             icon.className = 'shop-item__cost-icon';
@@ -359,17 +375,25 @@ function handleStartButton() {
 function updateTimerUI() {
     const statusBox = document.getElementById('statusContainer');
     if (!statusBox) return;
-    const speed = `<span class="topBar__speed" id="gameSpeedStatus">Speed: ${formatGameSpeed(gameState.gameSpeed)}</span>`;
+    const speed = `<span class="topBar__speed" id="gameSpeedStatus">${formatGameSpeed(gameState.gameSpeed)}</span>`;
+    const wave = `<span class="topBar__level">Fala <strong id="levelDisplay">${gameState.level}</strong></span>`;
 
     if (gameState.isInvasionActive) {
-        statusBox.innerHTML = `POKONANO: <span id="defeatedCount">${gameState.enemiesDefeated}</span> / ${gameState.totalEnemiesInWave} <span style="margin-left:20px; color:#ffd700;">POZIOM: ${gameState.level}</span>${speed}`;
+        statusBox.innerHTML = `${wave}
+            <span class="topBar__combat-count">
+                <span>Pokonano</span>
+                <span class="topBar__combat-value"><strong id="defeatedCount">${gameState.enemiesDefeated}</strong><span> / ${gameState.totalEnemiesInWave}</span></span>
+            </span>
+            ${speed}
+            <progress class="topBar__countdown topBar__countdown--combat" value="${gameState.enemiesDefeated}" max="${Math.max(1, gameState.totalEnemiesInWave)}" aria-label="Pokonani przeciwnicy"></progress>`;
     } else {
         const min = Math.floor(gameState.prepTime / 60);
         const sec = gameState.prepTime % 60;
         statusBox.innerHTML = `
-            <span class="topBar__timer-label">ATAK ZA: <strong id="prepTimer">${min}:${sec < 10 ? '0' : ''}${sec}</strong></span>
-            <span style="margin-left:20px; color:#ffd700; font-size: 1.6rem;">POZIOM: ${gameState.level}</span>
+            ${wave}
+            <span class="topBar__timer-label">Atak za <strong id="prepTimer">${min}:${String(sec).padStart(2, '0')}</strong></span>
             ${speed}
+            <progress class="topBar__countdown" value="${gameState.prepTime}" max="${GAME_CONFIG.preparationSeconds}" aria-label="Czas do ataku"></progress>
         `;
     }
 }
@@ -445,6 +469,7 @@ function updateBuildingUpgrade() {
     const button = document.getElementById('upgradeBuildingButton');
     const title = document.getElementById('buildingUpgradeTitle');
     const level = document.getElementById('buildingUpgradeLevel');
+    const icon = document.getElementById('buildingUpgradeIcon');
     const production = document.getElementById('buildingUpgradeProduction');
     const costText = info.cost === 0 ? 'za darmo' : `${info.cost} ${unit}`;
     const fullHealth = repair && object.hp >= repair.maxHp;
@@ -461,6 +486,8 @@ function updateBuildingUpgrade() {
         buttonText = info.cost === undefined ? 'Maksymalny poziom' : `Ulepsz na poziom ${info.level + 1} · ${costText}`;
     }
     if (title.textContent !== name) title.textContent = name;
+    const iconPath = getBuildingImage(object.type, object.level);
+    if (icon && icon.getAttribute('src') !== iconPath) icon.setAttribute('src', iconPath);
     const reposition = panel.hidden || level.textContent !== levelText || button.textContent !== buttonText;
     if (level.textContent !== levelText) level.textContent = levelText;
     level.hidden = Boolean(repair);
@@ -486,8 +513,6 @@ function inspectBuilding(tileId) {
     closeBuildingUpgrade();
     selectedBuilding = { tileId, objectId: object.id };
     tileViews[tileId].element.classList.add('game-tile--inspected');
-    const icon = document.getElementById('buildingUpgradeIcon');
-    if (icon) icon.src = itemImages[object.type];
     updateBuildingUpgrade();
     return true;
 }
@@ -496,6 +521,14 @@ function handleGridClick(event) {
     const tile = event.target.closest('.game-tile');
     if (!tile) return;
     const tileId = tileIds.get(tile);
+    if (removingBuilding) {
+        if (handlePlayerAction({ type: 'remove', tileId })) {
+            removingBuilding = false;
+            updateVisualHighlights();
+            saveLocalGame();
+        }
+        return;
+    }
     if (inspectBuilding(tileId)) return;
     closeBuildingUpgrade();
     if (selectedItemToPlace && tile.classList.contains('game-tile--can-place')) {
@@ -520,8 +553,15 @@ function updateShopButtons() {
         if (btn) {
             const affordable = canAfford(id);
             btn.disabled = !affordable;
-            btn.style.opacity = affordable ? "1" : "0.5";
             btn.setAttribute('draggable', affordable);
+            const costs = document.getElementById(`${id}Costs`);
+            const price = getShopCost(id);
+            for (const row of costs?.children ?? []) {
+                const resource = row.dataset.resource;
+                if (resource && price) {
+                    row.classList.toggle('shop-item__cost--missing', gameState[RESOURCE_BALANCES[resource]] < price[resource]);
+                }
+            }
         }
     });
     updateMaxCraftUI();
@@ -535,6 +575,19 @@ function updateResourcesUI() {
     if(sC) sC.textContent = gameState.seedCount;
     if(stC) stC.textContent = gameState.stoneCount;
     if(wC) wC.textContent = gameState.woodCount;
+    for (const [resource, counter] of [['wood', wC], ['stone', stC]]) {
+        const amount = pendingProduction[resource];
+        pendingProduction[resource] = 0;
+        if (!amount || !counter?.parentElement) continue;
+        const parent = counter.parentElement;
+        parent.querySelector('.topBar__resource-gain')?.remove();
+        const gain = document.createElement('span');
+        gain.className = 'topBar__resource-gain';
+        gain.textContent = `+${amount}`;
+        gain.setAttribute('aria-hidden', 'true');
+        gain.addEventListener('animationend', () => gain.remove(), { once: true });
+        parent.appendChild(gain);
+    }
     updateShopButtons();
 }
 
@@ -614,6 +667,19 @@ function updateScoreUI() {
 }
 
 function setupInteraction() {
+    const removeButton = document.getElementById('removeBuildingButton');
+    if (removeButton) {
+        removeButton.hidden = Boolean(serverGame);
+        const demolitionControl = document.getElementById('demolitionControl');
+        if (demolitionControl) demolitionControl.hidden = Boolean(serverGame);
+        removeButton.onclick = () => {
+            if (removeButton.disabled || draggedItem) return;
+            removingBuilding = !removingBuilding;
+            selectedItemToPlace = null;
+            closeBuildingUpgrade();
+            updateVisualHighlights();
+        };
+    }
     const upgrade = document.getElementById('upgradeBuildingButton');
     const closeUpgrade = document.getElementById('closeBuildingUpgradeButton');
     const upgradePanel = document.getElementById('buildingUpgrade');
@@ -635,7 +701,7 @@ function setupInteraction() {
     if (grid) {
         grid.onclick = handleGridClick;
         grid.addEventListener('pointerover', event => {
-            if (event.pointerType !== 'mouse' || draggedItem || selectedItemToPlace) return;
+            if (event.pointerType !== 'mouse' || draggedItem || selectedItemToPlace || removingBuilding) return;
             inspectBuilding(tileIds.get(event.target.closest('.game-tile')));
         });
         grid.addEventListener('pointerout', event => {
@@ -692,7 +758,10 @@ function setupInteraction() {
     window.onkeydown = (e) => {
         if (e.repeat) return;
         if (e.key === 'Escape' && !gameState.tutorialVisible) {
-            if (selectedBuilding) {
+            if (removingBuilding) {
+                removingBuilding = false;
+                updateVisualHighlights();
+            } else if (selectedBuilding) {
                 closeBuildingUpgrade();
             } else if (selectedItemToPlace) {
                 selectedItemToPlace = null;
@@ -710,6 +779,7 @@ function setupInteraction() {
         e.preventDefault();
         const item = SHOP_SHORTCUTS[index];
         if (!canAfford(item)) return;
+        removingBuilding = false;
         selectedItemToPlace = selectedItemToPlace === item ? null : item;
         updateVisualHighlights();
     };

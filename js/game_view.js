@@ -69,7 +69,7 @@ function renderTile(tile) {
                 element.className = `game-tile__${type} game-tile__${type}--size-${object.size}`;
             } else {
                 element.className = `game-tile__placed-item game-tile__item--${type}`;
-                element.style.backgroundImage = `url('${itemImages[type]}')`;
+                element.style.backgroundImage = `url('${getBuildingImage(type, object.level)}')`;
                 if (type === 'cannon') element.addEventListener('animationend', () => element.classList.remove('is-shooting'));
                 if (!serverGame && (type === 'tree' || type === 'quarry')) {
                     const badge = document.createElement('span');
@@ -84,7 +84,10 @@ function renderTile(tile) {
     }
     if (view.levelBadge) {
         const label = `Poz. ${object.level ?? 1}`;
-        if (view.levelBadge.textContent !== label) view.levelBadge.textContent = label;
+        if (view.levelBadge.textContent !== label) {
+            view.levelBadge.textContent = label;
+            if (type === 'quarry') view.object.style.backgroundImage = `url('${getBuildingImage(type, object.level)}')`;
+        }
     }
     const hp = String(object?.hp ?? 0);
     const hpChanged = view.element.dataset.hp !== hp;
@@ -136,10 +139,15 @@ function syncEntities(views, entities, create, update) {
 
 function createEnemyView(enemy) {
     const element = document.createElement('div');
-    element.className = `enemy-worm${enemy.type === 'boss' ? ' enemy-worm--boss' : ''}`;
-    element.style.backgroundImage = `url('${itemImages[enemy.type === 'boss' ? 'worm_boss' : 'worm_full']}')`;
+    element.className = `enemy-worm${enemy.type === 'normal' ? '' : ' enemy-worm--boss'}`;
+    element.style.backgroundImage = `url('${getEnemyImage(enemy)}')`;
     const hp = document.createElement('div');
     hp.className = 'enemy-worm__hp';
+    const fill = document.createElement('div');
+    fill.className = 'enemy-worm__hp-fill';
+    const label = document.createElement('span');
+    label.className = 'enemy-worm__hp-label';
+    hp.append(fill, label);
     element.appendChild(hp);
     const entry = tileViews[(enemy.row + 1) * GAME_CONFIG.columns - 1].element;
     entry.appendChild(element);
@@ -170,10 +178,20 @@ function createProjectileView() {
 function renderGameState() {
     if (tileViews.length !== gameState.tiles.length || !tileViews.length) return;
     for (const tile of gameState.tiles) renderTile(tile);
-    const scale = tileViews[0].element.offsetWidth / gameState.geometry.tileWidth;
+    const tileWidth = tileViews[0].element.offsetWidth;
+    const scale = tileWidth / gameState.geometry.tileWidth;
     syncEntities(enemyViews, gameState.activeEnemies, createEnemyView, (element, enemy) => {
         element.style.transform = `translate(-50%, -50%) translateX(-${enemy.offsetX * scale}px)`;
-        renderHealthFill(element.firstChild, enemy.hp, enemy.maxHp);
+        const hp = element.firstChild;
+        const laneHeight = `${tileWidth}px`;
+        if (hp.dataset.laneHeight !== laneHeight) {
+            hp.dataset.laneHeight = laneHeight;
+            hp.style.setProperty('--lane-height', laneHeight);
+        }
+        renderHealthFill(hp.firstChild, enemy.hp, enemy.maxHp);
+        const label = hp.children[1];
+        const value = `${enemy.hp} / ${enemy.maxHp} HP`;
+        if (label.textContent !== value) label.textContent = value;
     });
     if (projectileViews.size || gameState.activeProjectiles.length) {
         const root = (document.getElementById('appScale') || document.body).getBoundingClientRect();
@@ -193,8 +211,6 @@ function renderGameState() {
     if (hud !== renderedHud) {
         renderedHud = hud;
         document.querySelector('.topBar')?.classList[gameState.isInvasionActive ? 'add' : 'remove']('is-invasion');
-        const menuButton = document.getElementById('menuGameButton');
-        if (menuButton) menuButton.style.color = gameState.isInvasionActive ? 'black' : '';
         updateTimerUI();
         updateResourcesUI();
         updateScoreUI();
@@ -232,6 +248,7 @@ function restoreGameView(snapshot) {
     if (document.hidden) setSimulationPaused(true, now);
     stopGameFrame();
     selectedItemToPlace = null;
+    removingBuilding = false;
     closeBuildingUpgrade();
     document.getElementById('endScreen')?.remove();
     for (const element of [...enemyViews.values(), ...projectileViews.values()]) element.remove();

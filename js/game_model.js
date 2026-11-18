@@ -1,4 +1,5 @@
 const RESOURCE_BALANCES = { seeds: 'seedCount', stone: 'stoneCount', wood: 'woodCount' };
+const pendingProduction = { wood: 0, stone: 0 };
 let nextEntityId = 0;
 let randomState = 1;
 
@@ -52,11 +53,15 @@ function placeItem(tileId, item) {
     const tile = Number.isInteger(tileId) ? gameState.tiles[tileId] : null;
     if (gameState.gamePaused || gameState.gameEnded || !tile || isTileOccupied(tile) || !canAfford(item)) return false;
 
-    for (const [resource, price] of Object.entries(getShopCost(item))) {
+    const placementCost = getShopCost(item);
+    for (const [resource, price] of Object.entries(placementCost)) {
         gameState[RESOURCE_BALANCES[resource]] -= price;
     }
     const now = getGameTime();
-    tile.object = createBoardObject(item, { hp: item === 'seedling' ? 2 : GAME_CONFIG.hpValues[item] });
+    tile.object = createBoardObject(item, {
+        hp: item === 'seedling' ? 2 : GAME_CONFIG.hpValues[item],
+        placementCost: { ...placementCost }
+    });
     if (item === 'seedling') tile.object.growthAt = Math.floor(now) + GAME_CONFIG.treeGrowthTime;
     if (item === 'cannon') tile.object.lastShot = now - 1000;
     if (item === 'quarry') {
@@ -84,7 +89,8 @@ function growToTree(tile, now = getGameTime()) {
     if (tile.object?.type !== 'seedling') return;
     tile.object = {
         id: tile.object.id, type: 'tree', hp: GAME_CONFIG.hpValues.tree,
-        level: 1, nextWoodAt: now + GAME_CONFIG.treeProductionInterval
+        level: 1, nextWoodAt: now + GAME_CONFIG.treeProductionInterval,
+        placementCost: tile.object.placementCost
     };
 }
 
@@ -93,14 +99,18 @@ function updateTreeGrowth(now) {
         const object = tile.object;
         if (object?.type === 'quarry' && now >= object.nextStoneAt) {
             object.nextStoneAt += GAME_CONFIG.quarryProductionInterval;
-            gameState.stoneCount += GAME_CONFIG.quarryStonePerLevel[(object.level ?? 1) - 1];
+            const stone = GAME_CONFIG.quarryStonePerLevel[(object.level ?? 1) - 1];
+            gameState.stoneCount += stone;
+            pendingProduction.stone += stone;
         }
         if (object?.type === 'seedling' && now >= object.growthAt) growToTree(tile, now);
         if (object?.type !== 'tree') continue;
         object.nextWoodAt ??= now + GAME_CONFIG.treeProductionInterval;
         if (now < object.nextWoodAt) continue;
         object.nextWoodAt += GAME_CONFIG.treeProductionInterval;
-        gameState.woodCount += GAME_CONFIG.treeWoodPerLevel[(object.level ?? 1) - 1];
+        const wood = GAME_CONFIG.treeWoodPerLevel[(object.level ?? 1) - 1];
+        gameState.woodCount += wood;
+        pendingProduction.wood += wood;
         awardScoreForEvent('resources', 'tree', object.id);
     }
 }
@@ -125,6 +135,8 @@ function spawnInitialResources() {
 }
 
 function initializeGameModel(seed, epochMs, preferences = {}) {
+    pendingProduction.wood = 0;
+    pendingProduction.stone = 0;
     Object.assign(gameState, createGameState(), {
         gameSpeed: GAME_CONFIG.gameSpeeds.includes(preferences.gameSpeed) ? preferences.gameSpeed : 1,
         tutorialCompleted: preferences.tutorialCompleted === true
@@ -199,12 +211,30 @@ function repairBuilding(tileId, objectId) {
     return true;
 }
 
+function canRemoveBuilding(object) {
+    return Boolean(object && (object.type === 'tree' || Object.hasOwn(shopItems, object.type)));
+}
+
+function removeBuilding(tileId) {
+    const tile = Number.isInteger(tileId) ? gameState.tiles[tileId] : null;
+    if (!gameState.gameStarted || gameState.gamePaused || gameState.gameEnded ||
+        !canRemoveBuilding(tile?.object)) return false;
+    for (const [resource, amount] of Object.entries(tile.object.placementCost ?? {})) {
+        if (Object.hasOwn(RESOURCE_BALANCES, resource) && Number.isSafeInteger(amount) && amount >= 0) {
+            gameState[RESOURCE_BALANCES[resource]] += Math.floor(amount * GAME_CONFIG.removalRefundRate);
+        }
+    }
+    tile.object = null;
+    return true;
+}
+
 function applyGameAction(action) {
     switch (action?.type) {
         case 'collect': return collectResource(action.tileId);
         case 'place': return placeItem(action.tileId, action.item);
         case 'upgrade': return upgradeBuilding(action.tileId, action.objectId);
         case 'repair': return repairBuilding(action.tileId, action.objectId);
+        case 'remove': return removeBuilding(action.tileId);
         case 'hit': return damageEnemy(gameState.activeEnemies.find(enemy => enemy.id === action.enemyId), 2);
         default: return false;
     }

@@ -146,7 +146,7 @@ function isSnapshotBoardValid(state) {
         }
         return ['tree', 'woodFence', 'stoneWall'].includes(object.type);
     }) && state.activeEnemies.every(enemy => hasUniqueId(enemy) && inRow(enemy) &&
-        inColumn(enemy.currentCol) && ['normal', 'boss'].includes(enemy.type) &&
+        inColumn(enemy.currentCol) && ENEMY_TYPES.includes(enemy.type) &&
         [enemy.hp, enemy.maxHp, enemy.offsetX].every(Number.isFinite)) &&
         state.activeProjectiles.every(projectile => hasUniqueId(projectile) && inRow(projectile) &&
             inColumn(projectile.column) && Number.isFinite(projectile.xOffset));
@@ -161,7 +161,7 @@ function isSnapshotTaskValid(entry) {
             data.tileId >= 0 && data.tileId < GAME_CONFIG.rows * GAME_CONFIG.columns;
     }
     if (type === 'wave') {
-        return Array.isArray(data?.queue) && data.queue.every(enemy => ['normal', 'boss'].includes(enemy)) &&
+        return Array.isArray(data?.queue) && data.queue.every(enemy => ENEMY_TYPES.includes(enemy)) &&
             Number.isInteger(data.spawned) && data.spawned >= 0 && data.spawned < data.queue.length;
     }
     return ['growth', 'preparation', 'grass', 'stone'].includes(type);
@@ -193,6 +193,8 @@ function restoreGameState(snapshot, now = 0) {
     for (const key of Object.keys(gameState)) {
         if (Object.hasOwn(state, key)) gameState[key] = state[key];
     }
+    pendingProduction.wood = 0;
+    pendingProduction.stone = 0;
     scoreState = score;
     scoreState.points.time = Math.floor(scoreState.simulationTimeMs / 1000) * GAME_CONFIG.scoring.pointsPerSecond;
     updateScoreTotal();

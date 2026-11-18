@@ -1,5 +1,6 @@
 // Geometria w pikselach logicznych, zapisana raz na początku partii.
-const COLLISION_GEOMETRY = Object.freeze({ normal: 120, boss: 160, projectile: 45, hitInset: 20, contact: 55 });
+const COLLISION_GEOMETRY = Object.freeze({ normal: 120, boss: 160, master: 160, projectile: 45, hitInset: 20, contact: 55 });
+const ENEMY_TYPES = ['normal', 'boss', 'master'];
 
 function handleInvasionStart(now = getGameTime()) {
     if (gameState.gamePaused || gameState.gameEnded || gameState.isInvasionActive) return;
@@ -12,14 +13,20 @@ function handleInvasionStart(now = getGameTime()) {
         const index = Math.floor(gameRandom() * (i + 1));
         [queue[i], queue[index]] = [queue[index], queue[i]];
     }
+    const firstBossWave = Object.keys(GAME_CONFIG.waves).find(level => GAME_CONFIG.waves[level].boss > 0);
+    const masterCount = Math.max(0, gameState.level - firstBossWave);
+    for (let i = 0; i < masterCount; i++) {
+        queue.splice(Math.floor(gameRandom() * (queue.length + 1)), 0, 'master');
+    }
     gameState.totalEnemiesInWave = queue.length;
     scheduleGameTask('wave', Math.max(500, 3000 - gameState.level * 200), true, { queue, spawned: 0 }, now);
 }
 
 function spawnEnemy(row, type) {
     if (gameState.gamePaused || gameState.gameEnded || !gameState.isInvasionActive ||
-        !Number.isInteger(row) || row < 0 || row >= GAME_CONFIG.rows || !['normal', 'boss'].includes(type)) return;
-    const hp = GAME_CONFIG.hpValues[type === 'boss' ? 'worm_boss' : 'worm'];
+        !Number.isInteger(row) || row < 0 || row >= GAME_CONFIG.rows || !ENEMY_TYPES.includes(type)) return;
+    const baseHp = GAME_CONFIG.hpValues[type === 'normal' ? 'worm' : 'worm_boss'];
+    const hp = type === 'master' ? baseHp * GAME_CONFIG.bossMasterMultiplier : baseHp;
     gameState.activeEnemies.push({
         id: ++nextEntityId, hp, maxHp: hp, offsetX: 0, row, currentCol: GAME_CONFIG.columns - 1,
         attackTimer: null, type
@@ -34,7 +41,7 @@ function damageEnemy(enemy, amount) {
     if (enemy.hp > 0) return true;
 
     cancelGameTask(enemy.attackTimer);
-    awardScoreForEvent('enemies', enemy.type, enemy.id);
+    awardScoreForEvent('enemies', enemy.type === 'master' ? 'boss' : enemy.type, enemy.id);
     gameState.activeEnemies = gameState.activeEnemies.filter(candidate => candidate !== enemy);
     gameState.enemiesDefeated++;
     if (gameState.enemiesDefeated >= gameState.totalEnemiesInWave && gameState.activeEnemies.length === 0) {
@@ -109,7 +116,8 @@ function attackTile(enemyId, tileId, timerId, now) {
         return;
     }
     const object = tile.object;
-    object.hp -= enemy.type === 'boss' ? 2.5 : 1;
+    const baseDamage = enemy.type === 'normal' ? 1 : 2.5;
+    object.hp -= enemy.type === 'master' ? baseDamage * GAME_CONFIG.bossMasterMultiplier : baseDamage;
     if (object.hp <= 0) {
         tile.object = null;
         stopEnemyAttack(enemy);
@@ -129,7 +137,7 @@ function updateGameLoop(delta, now = getGameTime()) {
             stopEnemyAttack(enemy);
         }
 
-        const speed = enemy.type === 'boss' ? GAME_CONFIG.bossSpeed : GAME_CONFIG.enemySpeed;
+        const speed = enemy.type === 'normal' ? GAME_CONFIG.enemySpeed : GAME_CONFIG.bossSpeed;
         enemy.offsetX += speed * delta * 60;
         const newCol = GAME_CONFIG.columns - 1 - Math.floor((enemy.offsetX + contact) / width);
         if (newCol < 0) {
@@ -141,7 +149,7 @@ function updateGameLoop(delta, now = getGameTime()) {
             if (!tile.object) continue;
             enemy.currentCol = col;
             enemy.offsetX = Math.max(0, (GAME_CONFIG.columns - 1 - col) * width - contact);
-            enemy.attackTimer = scheduleGameTask('attack', enemy.type === 'boss' ? 2500 : 1200, true,
+            enemy.attackTimer = scheduleGameTask('attack', enemy.type === 'normal' ? 1200 : 2500, true,
                 { enemyId: enemy.id, tileId: tile.id }, now);
             break;
         }
@@ -158,6 +166,6 @@ function handleLevelComplete() {
     if (gameState.level >= 10) gameWin();
     else {
         gameState.level++;
-        gameState.prepTime = 120;
+        gameState.prepTime = GAME_CONFIG.preparationSeconds;
     }
 }

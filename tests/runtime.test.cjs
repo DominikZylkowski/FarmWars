@@ -80,6 +80,26 @@ test('panel przy murku pozwala naprawić obiekt i zamyka się po zjechaniu kurso
     assert.equal(tile.classList.contains('game-tile--inspected'), false);
 });
 
+test('tryb usuwania zwraca ćwierć faktycznej ceny i nie zbiera złóż', () => {
+    const game = createGame();
+    game.start();
+    game.run(`const plot = gameState.tiles.find(tile => !tile.object);
+        const deposit = gameState.tiles.find(tile => tile.object?.type === 'stone');
+        gameState.woodCount = shopItems.cannon.wood;
+        gameState.stoneCount = shopItems.cannon.stone;
+        handlePlayerAction({ type: 'place', item: 'cannon', tileId: plot.id });`);
+    const button = game.document.getElementById('removeBuildingButton');
+    button.onclick();
+    game.run('handleGridClick({ target: { closest: () => tileViews[deposit.id].element } });');
+    assert.equal(game.run('deposit.object.type'), 'stone');
+    assert.equal(button.getAttribute('aria-pressed'), 'true');
+    game.run('handleGridClick({ target: { closest: () => tileViews[plot.id].element } });');
+    assert.equal(game.run('plot.object'), null);
+    assert.equal(game.run('gameState.woodCount'), 50);
+    assert.equal(game.run('gameState.stoneCount'), 37);
+    assert.equal(button.getAttribute('aria-pressed'), 'false');
+});
+
 test('pauza i ukrycie karty zatrzymują czas i fazę timerów', () => {
     const game = createGame();
     game.start();
@@ -324,11 +344,14 @@ test('dotarcie przeciwnika do domu kończy grę i pozwala zapisać porażkę', a
     assert.equal((await game.run('rankingRepository.getHistory()'))[0].status, 'lost');
 });
 
-test('wszystkie 10 fal: 275 małych robaków, 63 bossów i zwycięstwo', () => {
+test('wszystkie 10 fal zachowuje zwykłych bossów i dodaje rosnącą liczbę Masterów', () => {
     const game = createGame();
     game.start();
     for (let level = 1; level <= 10; level++) {
         game.run('handleInvasionStart();');
+        const queue = JSON.parse(game.run("JSON.stringify([...gameTimers.values()].find(task => task.type === 'wave').data.queue)"));
+        assert.equal(queue.filter(type => type === 'boss').length, game.run('GAME_CONFIG.waves[gameState.level].boss'));
+        assert.equal(queue.filter(type => type === 'master').length, Math.max(0, level - 3));
         const count = game.run('gameState.totalEnemiesInWave');
         const interval = Math.max(500, 3000 - level * 200);
         for (let i = 0; i < count; i++) {
@@ -339,8 +362,8 @@ test('wszystkie 10 fal: 275 małych robaków, 63 bossów i zwycięstwo', () => {
     const summary = game.summary();
     assert.equal(summary.status, 'won');
     assert.equal(summary.enemiesByType.normal, 275);
-    assert.equal(summary.enemiesByType.boss, 63);
-    assert.equal(summary.points.enemies, 7705);
+    assert.equal(summary.enemiesByType.boss, 91);
+    assert.equal(summary.points.enemies, 8685);
     assert.equal(game.run('gameTimers.size'), 0);
     assert.equal(game.frames.size, 0);
 });

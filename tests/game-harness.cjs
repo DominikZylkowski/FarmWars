@@ -128,7 +128,8 @@ function createGame(storedValues = {}, browser = {}) {
     add('p', 'tutorialStepText', tutorial);
     add('div', 'scoreDisplay', root);
     add('div', 'statusContainer', root);
-    add('div', 'mainTopBar', root, 'topBar');
+    const topBar = add('div', 'mainTopBar', root, 'topBar');
+    add('button', 'removeBuildingButton', topBar);
     for (const item of ['cannon', 'seedling', 'woodFence', 'stoneWall']) add('button', `${item}Button`, root);
     const document = {
         body, hidden: false,
