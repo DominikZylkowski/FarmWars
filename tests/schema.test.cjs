@@ -19,14 +19,14 @@ test('statyczny audyt SQL: tabele, FK, bezpieczne domyślne wartości i unikalna
     assert.match(fs.readFileSync(path.join(root, 'database/.htaccess'), 'utf8'), /Require all denied/);
 });
 
-test('reguły SQL zgadzają się z JavaScript; nie zmieniono stawek ani cen', () => {
+test('reguły SQL zgadzają się ze stawkami i cenami trybu serwerowego', () => {
     const rules = JSON.parse(sql.match(/\n    '(\{[\s\S]*?\})'\n\);/)[1]);
     const context = vm.createContext({ window: { localStorage: { getItem: () => null } } });
     vm.runInContext(fs.readFileSync(path.join(root, 'js/config.js'), 'utf8'), context);
     const config = JSON.parse(vm.runInContext('JSON.stringify(GAME_CONFIG)', context));
     assert.deepEqual(rules.scoring, config.scoring);
     assert.deepEqual(rules.waves, config.waves);
-    assert.deepEqual(rules.shopItems, JSON.parse(vm.runInContext('JSON.stringify(shopItems)', context)));
+    assert.deepEqual(rules.shopItems, JSON.parse(vm.runInContext('JSON.stringify(serverShopItems)', context)));
     assert.equal(config.scoring.enemies.normal, 20);
     assert.equal(config.scoring.enemies.boss, 35);
     assert.equal(config.scoring.resources.tree, 12);

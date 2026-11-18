@@ -3,13 +3,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-let stored = null;
+const storage = new Map();
+const rankingKey = 'farmwarsRankingV1';
 let blocked = false;
 let writeBlocked = false;
 const context = vm.createContext({
     window: { localStorage: {
-        getItem() { if (blocked) throw new Error(); return stored; },
-        setItem(key, value) { if (blocked || writeBlocked) throw new Error(); stored = value; }
+        getItem(key) { if (blocked) throw new Error(); return storage.get(key) ?? null; },
+        setItem(key, value) { if (blocked || writeBlocked) throw new Error(); storage.set(key, value); }
     } }
 });
 for (const file of ['config.js', 'ranking.js']) {
@@ -58,11 +59,11 @@ const run = code => vm.runInContext(code, context);
     blocked = true;
     await assert.rejects(run('rankingRepository.getLeaderboard()'), /odczytać/);
     blocked = false;
-    stored = '{broken';
+    storage.set(rankingKey, '{broken');
     await assert.rejects(run(`rankingRepository.saveResult('Test', { ...result, runId: 'run-5' })`));
-    assert.equal(stored, '{broken', 'Uszkodzona historia nie zostaje nadpisana');
+    assert.equal(storage.get(rankingKey), '{broken', 'Uszkodzona historia nie zostaje nadpisana');
     // Integracja formularza i tabeli z adapterem (minimalny DOM).
-    stored = null;
+    storage.delete(rankingKey);
     class Element {
         constructor(tag) {
             this.tagName = tag;

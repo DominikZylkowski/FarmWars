@@ -211,7 +211,7 @@ test('pełny tryb online: walidacja komend, współbieżność, walka i zapis po
     assert.equal(current.summary.validationLevel, 'server_simulated');
     assert.equal(current.summary.isRanked, false);
     assert.equal(current.summary.points.items, 10);
-    assert.ok(current.summary.points.time < 200);
+    assert.equal(current.summary.points.time, Math.floor(current.simulationMs / 1000));
     const frozen = (await call(statePath, owner)).envelope.data;
     assert.equal(frozen.revision, current.revision);
     assert.deepEqual(frozen.summary, current.summary);

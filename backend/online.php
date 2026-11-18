@@ -333,7 +333,7 @@ function applyOnlineCommand(array &$state, array $rules, string $type, array $pa
 
 function onlineScore(array $state, array $rules): array
 {
-    $points = ['time' => (int) floor(($state['activeMs'] + 0.0002) / 1000) * $rules['scoring']['pointsPerSecond']];
+    $points = ['time' => intdiv($state['simulationMs'], 1000) * $rules['scoring']['pointsPerSecond']];
     $counts = [];
     foreach ($state['counts'] as $category => $categoryCounts) {
         $points[$category] = 0;

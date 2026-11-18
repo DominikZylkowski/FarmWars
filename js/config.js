@@ -1,22 +1,30 @@
 // ------------------------- Konfiguracja gry -------------------------
 const GAME_CONFIG = {
     rulesetId: 'farmwars-1',
+    freeLocalPurchases: false,
     gameSpeeds: Object.freeze([0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]),
     rows: 5,
     columns: 10,
     tileClassNames: ['game-tile--light', 'game-tile--dark'],
     baseGrassCount: 6,
-    baseStoneCount: 4,
+    baseStoneCount: 11,
+    firstWaveStoneLimit: 28,
     spawnIntervals: {
         grass: 15000, 
         stone: 25000  
     },
-    treeGrowthTime: 15000, 
+    treeGrowthTime: 15000,
+    treeProductionInterval: 15000,
+    treeWoodPerLevel: [6, 8, 10, 12, 15],
+    quarryProductionInterval: 15000,
+    quarryStonePerLevel: [6, 8, 10, 12, 15],
+    producerUpgradeCosts: [25, 50, 75, 100],
     hpValues: { 
         tree: 5, 
         cannon: 10, 
         woodFence: 8, 
-        stoneWall: 25, 
+        stoneWall: 25,
+        quarry: 25,
         worm: 10,
         worm_boss: 30 
     },
@@ -45,13 +53,16 @@ const GAME_CONFIG = {
 };
 
 function createGameState() {
+    const prepTime = 120;
+    const timedStoneDeposits = Math.ceil(prepTime * 1000 / GAME_CONFIG.spawnIntervals.stone) - 1;
     return {
         gameStarted: false,
         level: 1,
         seedCount: 0,
         stoneCount: 0,
         woodCount: 0,
-        prepTime: 120,
+        prepTime,
+        firstWaveStoneBonus: Math.max(0, GAME_CONFIG.firstWaveStoneLimit - GAME_CONFIG.baseStoneCount - timedStoneDeposits),
         gamePaused: true,
         gameEnded: false,
         isInvasionActive: false,
@@ -112,7 +123,15 @@ function safeSetStoredValue(key, value) {
 }
 
 const shopItems = {
-    cannon: { wood: 20, stone: 15 }, 
+    cannon: { wood: 200, stone: 150 },
+    seedling: { seeds: 20 },
+    woodFence: { wood: 100 },
+    stoneWall: { stone: 120 },
+    quarry: { stone: 30, wood: 50 }
+};
+
+const serverShopItems = {
+    cannon: { wood: 20, stone: 15 },
     seedling: { seeds: 1 },
     woodFence: { wood: 10 },
     stoneWall: { stone: 12 }
@@ -130,6 +149,7 @@ const itemImages = {
     tree: 'assets/images/Tree.png',
     woodFence: 'assets/images/woodFence.png',
     stoneWall: 'assets/images/stoneWall.png',
+    quarry: 'assets/images/quarry.png',
     worm_full: 'assets/images/worm_full.png',
     worm_boss: 'assets/images/worm_boss.png',
     cannonball: 'assets/images/cannonball.png' 

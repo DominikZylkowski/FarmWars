@@ -40,7 +40,7 @@ function updateScoreTime(now = performance.now()) {
     const elapsed = now - scoreClockStartedAt;
     scoreState.activeTimeMs = scoreActiveBaselineMs + elapsed;
     scoreState.simulationTimeMs = scoreSimulationBaselineMs + elapsed * gameState.gameSpeed;
-    scoreState.points.time = Math.floor(scoreState.activeTimeMs / 1000) * GAME_CONFIG.scoring.pointsPerSecond;
+    scoreState.points.time = Math.floor(scoreState.simulationTimeMs / 1000) * GAME_CONFIG.scoring.pointsPerSecond;
     updateScoreTotal();
 }
 
@@ -96,7 +96,7 @@ function finishScore(status, now = performance.now(), finishedAt = new Date().to
 function getScoreSummary() {
     updateScoreTime(typeof currentRealTime === 'number' ? currentRealTime : performance.now());
     return {
-        schemaVersion: 2,
+        schemaVersion: 3,
         runId: scoreState.runId,
         rulesetId: scoreState.rulesetId,
         finishedAt: scoreState.finishedAt,

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { createGame } = require('./game-harness.cjs');
 
 test('ESC przed startem, ukończony samouczek i domyślna szybkość niezależna od dawnej głośności', () => {
-    const game = createGame({ gameVolume: '0', farmwarsTutorialCompleted: '1' });
+    const game = createGame({ gameVolume: '0', farmwarsTutorialCompletedV2: '1' });
     game.run('togglePause();');
     assert.equal(game.run('gameState.gamePaused'), true);
     assert.equal(game.frames.size, 0);
@@ -15,8 +15,12 @@ test('ESC przed startem, ukończony samouczek i domyślna szybkość niezależna
 });
 
 test('samouczek nie nalicza czasu, startuje tylko jedna pętla', () => {
-    const game = createGame();
+    const game = createGame({ farmwarsTutorialCompleted: '1' });
     game.run('handleStartButton(); togglePause();');
+    assert.equal(game.run('gameState.tutorialVisible'), true);
+    assert.equal(game.document.getElementById('tutorialStepProgress').textContent, '1/6');
+    game.run('advanceTutorial(); advanceTutorial(); advanceTutorial();');
+    assert.match(game.document.getElementById('tutorialStepText').textContent, /30 kamienia i 50 drewna/);
     game.advance(20000);
     assert.equal(game.summary().totalScore, 0);
     assert.equal(game.run('gameState.gamePaused'), true);
@@ -25,6 +29,55 @@ test('samouczek nie nalicza czasu, startuje tylko jedna pętla', () => {
     game.run('handleInvasionStart(); handleInvasionStart();');
     assert.equal(game.run('gameTimers.size'), 5, '4 timery podstawowe i jedna kolejka fali');
     assert.equal(game.frames.size, 1);
+});
+
+test('po przeładowaniu można kontynuować zapis albo zacząć nową grę', () => {
+    const game = createGame();
+    game.start();
+    game.run('gameState.woodCount = 42');
+    game.advance(2400);
+    game.hide();
+    const storage = Object.fromEntries(game.storage);
+
+    const resumed = createGame(storage);
+    const continueButton = resumed.document.getElementById('continueSavedGameButton');
+    assert.equal(resumed.document.getElementById('savedGameChoice').hidden, false);
+    assert.equal(resumed.frames.size, 0);
+    continueButton.onclick();
+    assert.equal(resumed.document.getElementById('savedGameChoice').hidden, true);
+    assert.equal(resumed.run('gameState.woodCount'), 42);
+    assert.equal(resumed.run('gameState.prepTime'), 118);
+    assert.equal(resumed.run('gameState.gamePaused'), false);
+
+    const restarted = createGame(storage);
+    restarted.document.getElementById('restartSavedGameButton').onclick();
+    assert.equal(restarted.run('gameState.woodCount'), 0);
+    assert.equal(restarted.run('gameState.prepTime'), 120);
+});
+
+test('panel przy murku pozwala naprawić obiekt i zamyka się po zjechaniu kursorem', () => {
+    const game = createGame();
+    game.start();
+    game.run(`const tile = gameState.tiles.find(tile => !tile.object);
+        tile.object = createBoardObject('stoneWall', { hp: 20 });
+        gameState.stoneCount = 30;
+        renderGameState();`);
+    const tile = game.run('tileViews[tile.id].element');
+    const grid = game.document.getElementById('gameGrid');
+    const panel = game.document.getElementById('buildingUpgrade');
+    const mouse = { pointerType: 'mouse', target: { closest: () => tile } };
+    grid.onpointerover(mouse);
+    assert.equal(panel.hidden, false);
+    assert.equal(panel.style.left, `${tile.getBoundingClientRect().right}px`);
+    assert.ok(tile.classList.contains('game-tile--inspected'));
+    grid.onpointerout({ ...mouse, relatedTarget: { closest: selector => selector === '#buildingUpgrade' ? panel : null } });
+    assert.equal(panel.hidden, false);
+    game.document.getElementById('upgradeBuildingButton').onclick();
+    assert.equal(game.run('tile.object.hp'), 25);
+    assert.equal(game.run('tileViews[tile.id].healthBar'), null);
+    panel.onpointerleave({ pointerType: 'mouse', relatedTarget: null });
+    assert.equal(panel.hidden, true);
+    assert.equal(tile.classList.contains('game-tile--inspected'), false);
 });
 
 test('pauza i ukrycie karty zatrzymują czas i fazę timerów', () => {
@@ -70,7 +123,7 @@ test('wzrost drzewa i cooldown armaty zachowują czas po pauzie', () => {
     game.start();
     game.run(`
         const tile = gameState.tiles.find(tile => !isTileOccupied(tile));
-        gameState.seedCount = 2;
+        gameState.seedCount = shopItems.seedling.seeds;
         placeItem(tile.id, 'seedling');
     `);
     game.advance(7000);
@@ -84,7 +137,7 @@ test('wzrost drzewa i cooldown armaty zachowują czas po pauzie', () => {
     assert.equal(game.summary().itemsCrafted, 1);
     game.run(`
         tile.object = null;
-        gameState.woodCount = 20; gameState.stoneCount = 15;
+        gameState.woodCount = shopItems.cannon.wood; gameState.stoneCount = shopItems.cannon.stone;
         placeItem(tile.id, 'cannon');
         gameState.isInvasionActive = true;
         const index = tile.id;

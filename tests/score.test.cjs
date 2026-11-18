@@ -75,7 +75,7 @@ run(`
     gameState.gameStarted = true;
     gameState.gameEnded = false;
     setGamePaused(false);
-    gameState.seedCount = 1;
+    gameState.seedCount = shopItems.seedling.seeds;
     gameState.tiles = createBoardModel();
     placeItem(0, 'seedling');
     placeItem(0, 'seedling');
@@ -83,19 +83,20 @@ run(`
 `);
 assert.equal(summary().itemsCrafted, 1, 'Zajęte pole i brak surowców nie przyznają punktów');
 run(`
+    gameState.tiles[0].object = null;
     const treeTile = gameState.tiles[1];
     treeTile.object = createBoardObject('tree', { hp: 5 });
-    const treeId = treeTile.object.id;
-    applyGameAction({ type: 'collect', tileId: treeTile.id });
-    applyGameAction({ type: 'collect', tileId: treeTile.id });
-    awardScoreForEvent('resources', 'tree', treeId);
+    updateTreeGrowth(0);
+    updateTreeGrowth(GAME_CONFIG.treeProductionInterval);
+    updateTreeGrowth(2 * GAME_CONFIG.treeProductionInterval);
 `);
-assert.equal(summary().points.resources, 12, 'Zebranie drzewa daje punkty tylko raz');
+assert.equal(summary().points.resources, 12, 'Produkcja drzewa daje punkty tylko raz');
 assert.equal(summary().resourcesCollected, 1);
 assert.equal(summary().resourcesByType.tree, 1);
 run(`
     treeTile.object = createBoardObject('tree', { hp: 5 });
-    collectResource(treeTile.id);
+    updateTreeGrowth(0);
+    updateTreeGrowth(GAME_CONFIG.treeProductionInterval);
 `);
 assert.equal(summary().points.resources, 24, 'Nowe drzewo na tym samym polu także daje punkty');
 run(`

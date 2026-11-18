@@ -47,6 +47,10 @@
             <button class="topBar__button" id="stoneWallButton">Murek</button>
             <div class="shop-item__costs" id="stoneWallCosts"></div>
         </div>
+        <div class="shop-item">
+            <button class="topBar__button topBar__button--quarry" id="quarryButton">Kamieniołom</button>
+            <div class="shop-item__costs" id="quarryCosts"></div>
+        </div>
     </div>
 
     <!-- 3. STATUS (TIMER I POZIOM) - Centralny szeroki panel -->
@@ -108,12 +112,23 @@
     </section>
 </main>
 
+<section class="building-upgrade" id="buildingUpgrade" aria-labelledby="buildingUpgradeTitle" hidden>
+    <div class="building-upgrade__header">
+        <img id="buildingUpgradeIcon" alt="">
+        <h2 id="buildingUpgradeTitle"></h2>
+        <span class="building-upgrade__level" id="buildingUpgradeLevel"></span>
+    </div>
+    <p class="building-upgrade__production" id="buildingUpgradeProduction"></p>
+    <button type="button" id="upgradeBuildingButton"></button>
+    <button type="button" id="closeBuildingUpgradeButton">Zamknij</button>
+</section>
+
 <!-- Samouczek -->
 <div class="tutorial is-hidden" id="tutorialOverlay" aria-live="polite">
     <div class="tutorial__panel">
         <div class="tutorial__header">
             <span class="tutorial__title" id="tutorialStepTitle">Samouczek</span>
-            <span class="tutorial__progress" id="tutorialStepProgress">1/4</span>
+            <span class="tutorial__progress" id="tutorialStepProgress"></span>
         </div>
         <p class="tutorial__text" id="tutorialStepText"></p>
         <div class="tutorial__actions">
@@ -126,6 +141,12 @@
 <!-- Menu Startowe / Overlay Pauzy -->
 <div class="menu menu--overlay" id="gameMenu">
     <h1 class="menu__title">FarmWars</h1>
+    <section class="saved-game" id="savedGameChoice" aria-labelledby="savedGameTitle" hidden>
+        <h2 id="savedGameTitle">Zapisana rozgrywka</h2>
+        <button class="saved-game__continue" id="continueSavedGameButton" type="button">Kontynuuj grę</button>
+        <button class="saved-game__restart" id="restartSavedGameButton" type="button">Zacznij od nowa</button>
+        <small>Rozpoczęcie od nowa zastąpi poprzedni zapis.</small>
+    </section>
     <div class="menu__button-group">
         <!-- Ten przycisk służy zarówno do startu, jak i do wznowienia (Resume) -->
         <button class="menu__button" id="startGameButton" type="button">ZAGRAJ</button>

@@ -130,7 +130,7 @@ test('serwerowy zestaw reguł odpowiada obecnym kosztom, szybkościom, HP i zega
     const rules = JSON.parse(sql.match(/\n    '(\{[\s\S]*?\})'\n\)/)[1]);
     const game = createGame();
     const config = JSON.parse(game.run('JSON.stringify(GAME_CONFIG)'));
-    const shop = JSON.parse(game.run('JSON.stringify(shopItems)'));
+    const shop = JSON.parse(game.run('JSON.stringify(serverShopItems)'));
     for (const price of Object.values(shop)) {
         if ('stone' in price) {
             price.stones = price.stone;

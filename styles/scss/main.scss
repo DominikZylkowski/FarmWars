@@ -226,9 +226,14 @@ body {
     border: 4px solid $color-panel-border;
     box-shadow: inset 0 -4px 0 $shadow-inset-light;
     padding: 4px 12px;
-    min-width: 100px;
+    width: 100%;
     text-align: center;
     transition: 0.15s;
+
+    &--quarry {
+      padding-inline: 2px;
+      font-size: 0.75rem;
+    }
 
     &:hover:not(:disabled) { filter: brightness(1.1); }
     &[aria-pressed='true'] {
@@ -261,6 +266,8 @@ body {
   gap: 3px;
   flex-shrink: 0;
   width: 120px;
+
+  &[hidden] { display: none; }
 
   &__shortcut {
     position: absolute;
@@ -498,6 +505,20 @@ body {
   background-repeat: no-repeat;
   background-position: center;
   image-rendering: pixelated;
+}
+
+.game-tile__level {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  padding: 1px 3px;
+  border: 1px solid $border-color;
+  background: $color-panel-fill;
+  color: $color-text-dark;
+  font-size: clamp(8px, 1.2vw, 13px);
+  font-weight: bold;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .game-tile__health {
@@ -918,7 +939,113 @@ body {
 .topBar__cost-preview { height: auto; min-height: 1.2rem; flex-basis: 100%; text-align: right; overflow-wrap: anywhere; }
 .menu { padding: clamp(20px, 6vh, 64px) clamp(12px, 4vw, 40px); }
 .menu--overlay { position: fixed; max-height: calc(100dvh - 24px); overflow-y: auto; }
+.menu--saved-game {
+  width: min(400px, calc(100% - 24px));
+  padding: clamp(16px, 5vw, 32px);
+  gap: 20px;
+  justify-content: flex-start;
+  background: $color-overlay-bg;
+  color: $color-text-dark;
+
+  .menu__title { font-size: 1.5rem; }
+  .menu__button-group, > a, > p { display: none; }
+}
+
+.saved-game {
+  display: grid;
+  width: 100%;
+  gap: 12px;
+  padding: clamp(12px, 4vw, 20px);
+  border: 2px solid $border-color;
+  background: $color-panel-fill;
+
+  &[hidden] { display: none; }
+
+  h2 { margin: 0; font-size: 1.4rem; }
+
+  button {
+    min-height: 44px;
+    padding: 8px;
+    border: 2px solid $border-color;
+    font: inherit;
+    font-weight: bold;
+  }
+
+  &__continue {
+    margin-top: 4px;
+    background: $start-button-color;
+    color: $color-white-pure;
+  }
+
+  &__restart {
+    background: transparent;
+    color: $color-text-dark;
+  }
+
+  button:hover { filter: brightness(1.15); }
+  button:focus-visible { outline: 2px solid $color-text-dark; outline-offset: 2px; }
+}
 .tutorial { position: fixed; max-height: calc(100dvh - 24px); overflow-y: auto; }
+
+.building-upgrade {
+  position: fixed;
+  z-index: 10000000;
+  width: min(320px, calc(100% - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  padding: 12px;
+  border: 3px solid $border-color;
+  background: $color-overlay-bg;
+  color: $color-text-dark;
+  box-shadow: 0 4px 0 $shadow-standard;
+
+  h2 { margin: 0; }
+  h2 { font-size: 1.2rem; }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+  }
+
+  &__level {
+    margin-left: auto;
+    padding: 4px 6px;
+    background: $border-color;
+    color: $color-white-pure;
+  }
+
+  &__production {
+    margin: 8px 0;
+    padding: 8px;
+    border: 1px solid $border-color;
+    background: $color-panel-fill;
+  }
+
+  button {
+    min-height: 44px;
+    padding: 6px;
+    border: 2px solid $border-color;
+    background: $color-panel-fill;
+    color: inherit;
+    font: inherit;
+  }
+
+  #upgradeBuildingButton:not(:disabled) {
+    background: $start-button-color;
+    color: $color-white-pure;
+  }
+
+  button:disabled { opacity: 0.6; }
+}
+
+.game-tile--inspected {
+  outline: 3px solid $color-tile-highlight;
+  outline-offset: -3px;
+}
 
 @media (max-width: 1250px) {
   .topBar { grid-template-columns: auto minmax(0, 1fr); }
@@ -951,10 +1078,11 @@ body {
   .topBar__resource { min-width: 0; border-width: 2px; padding: 4px; }
   .topBar__resources { gap: 4px; }
   .topBar__menu-btn { padding: 6px 8px; border-width: 2px; }
-  .topBar__actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .topBar__actions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
   .shop-item { width: 100%; min-width: 0; }
   .shop-item__shortcut { display: none; }
   .topBar__button { width: 100%; min-width: 0; padding: 4px 2px; border-width: 2px; }
+  .topBar__button--quarry { font-size: clamp(0.55rem, 1.5vw, 0.75rem); }
   .shop-item__product-icon { width: 20px; height: 20px; margin-right: 3px; }
   .topBar__status { gap: 12px; flex-wrap: wrap; }
   .topBar__timer-label, .topBar__level { font-size: 1.3rem; }

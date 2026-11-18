@@ -23,31 +23,87 @@ function engine() {
 const start = `initializeGameModel(123456, 1700000000000);
     gameState.gameStarted = true; startScore('replay-test'); setSimulationPaused(false, 0);`;
 
-test('silnik bez DOM zbiera zasoby, sprawdza ceny, zachowuje ID sadzonki i rozlicza drzewo raz', () => {
+test('silnik bez DOM zbiera zasoby, sprawdza ceny i nalicza drewno po wyrośnięciu sadzonki', () => {
     const { run, save } = engine();
+    run('GAME_CONFIG.freeLocalPurchases = false');
     run(start);
     const initial = save();
     assert.equal(initial.state.tiles.filter(tile => tile.object?.type === 'grass').length, 6);
-    assert.equal(initial.state.tiles.filter(tile => tile.object?.type === 'stone').length, 4);
+    assert.equal(initial.state.tiles.filter(tile => tile.object?.type === 'stone').length, 11);
     run(`const grass = gameState.tiles.find(tile => tile.object?.type === 'grass');
         const size = grass.object.size;`);
     assert.equal(run(`applyGameAction({ type: 'place', item: 'seedling', tileId: grass.id })`), false);
     assert.equal(run(`applyGameAction({ type: 'collect', tileId: grass.id })`), true);
     assert.equal(run('gameState.seedCount'), run('size'));
     assert.equal(run(`applyGameAction({ type: 'collect', tileId: grass.id })`), false);
+    assert.equal(run(`applyGameAction({ type: 'place', item: 'seedling', tileId: grass.id })`), false);
+    run('gameState.seedCount = shopItems.seedling.seeds');
     assert.equal(run(`applyGameAction({ type: 'place', item: 'seedling', tileId: grass.id })`), true);
     assert.equal(run(`applyGameAction({ type: 'place', item: 'seedling', tileId: grass.id })`), false);
-    assert.equal(run('gameState.seedCount'), run('size - 1'));
+    assert.equal(run('gameState.seedCount'), 0);
     const id = run('grass.object.id');
     run('advanceGameTo(14990);');
     assert.equal(run('grass.object.type'), 'seedling');
     run('advanceGameTo(15000);');
     assert.equal(run('grass.object.type'), 'tree');
     assert.equal(run('grass.object.id'), id);
-    assert.equal(run('collectResource(grass.id)'), true);
     assert.equal(run('collectResource(grass.id)'), false);
-    assert.equal(run('gameState.woodCount'), 2);
+    run('advanceGameTo(29990)');
+    assert.equal(run('gameState.woodCount'), 0);
+    run('advanceGameTo(30000)');
+    assert.equal(run('gameState.woodCount'), 6);
+    run('grass.object.level = 5; advanceGameTo(45000)');
+    assert.equal(run('gameState.woodCount'), 21);
     assert.equal(save().score.points.resources, 12);
+});
+
+test('ulepszanie producentów pobiera odpowiedni surowiec i zwiększa następną wypłatę', () => {
+    const { run, save, restore } = engine();
+    run('GAME_CONFIG.freeLocalPurchases = false');
+    run(start);
+    run(`const [tree, quarry] = gameState.tiles.filter(tile => !tile.object);
+        tree.object = createBoardObject('seedling');
+        growToTree(tree, 0);
+        gameState.stoneCount = shopItems.quarry.stone;
+        gameState.woodCount = shopItems.quarry.wood;
+        placeItem(quarry.id, 'quarry');`);
+    assert.equal(run("applyGameAction({ type: 'upgrade', tileId: tree.id, objectId: tree.object.id })"), false);
+    assert.equal(run("applyGameAction({ type: 'upgrade', tileId: quarry.id, objectId: quarry.object.id })"), false);
+    run('gameState.woodCount = 250; gameState.stoneCount = 25;');
+    assert.equal(run('upgradeBuilding(tree.id, quarry.object.id)'), false);
+    assert.equal(run('upgradeBuilding(quarry.id, quarry.object.id)'), true);
+    for (let level = 2; level <= 5; level++) {
+        assert.equal(run('upgradeBuilding(tree.id, tree.object.id)'), true);
+        assert.equal(run('tree.object.level'), level);
+    }
+    assert.equal(run('upgradeBuilding(tree.id, tree.object.id)'), false);
+    assert.equal(run('gameState.woodCount + gameState.stoneCount'), 0);
+    restore(save(), 0);
+    run('advanceGameTo(14990);');
+    assert.equal(run('gameState.woodCount + gameState.stoneCount'), 0);
+    run('advanceGameTo(15000);');
+    assert.equal(run('gameState.woodCount'), 15);
+    assert.equal(run('gameState.stoneCount'), 8);
+});
+
+test('naprawa kosztuje ćwierć ceny i przywraca połowę maksymalnego życia', () => {
+    const { run } = engine();
+    run(start);
+    run(`const [fence, wall] = gameState.tiles.filter(tile => !tile.object);
+        fence.object = createBoardObject('woodFence', { hp: 2 });
+        wall.object = createBoardObject('stoneWall', { hp: 5 });
+        gameState.woodCount = 24;
+        gameState.stoneCount = 60;`);
+    assert.equal(run('repairBuilding(fence.id, fence.object.id)'), false);
+    assert.equal(run("gameState.woodCount = 25; applyGameAction({ type: 'repair', tileId: fence.id, objectId: fence.object.id })"), true);
+    assert.equal(run('fence.object.hp'), 6);
+    assert.equal(run('gameState.woodCount'), 0);
+    assert.equal(run('repairBuilding(wall.id, wall.object.id)'), true);
+    assert.equal(run('wall.object.hp'), 17.5);
+    assert.equal(run('repairBuilding(wall.id, wall.object.id)'), true);
+    assert.equal(run('wall.object.hp'), 25);
+    assert.equal(run('repairBuilding(wall.id, wall.object.id)'), false);
+    assert.equal(run('gameState.stoneCount'), 0);
 });
 
 test('geometria logiczna odpowiada dawnemu testowi prostokątów i progowi kontaktu', () => {
@@ -82,7 +138,7 @@ test('migawka odtwarza generator, wzrost, kolejkę fali, trwający atak, pocisk 
     const original = engine();
     original.run(start);
     original.run(`gameState.tiles.forEach(tile => { tile.object = null; });
-        gameState.seedCount = 1; gameState.woodCount = 10;
+        gameState.seedCount = shopItems.seedling.seeds; gameState.woodCount = shopItems.woodFence.wood;
         placeItem(2, 'seedling'); placeItem(9, 'woodFence');
         handleInvasionStart(); spawnEnemy(0, 'normal'); advanceGameTo(500);
         fireCannon(gameState.tiles[0]); advanceGameTo(755); setSimulationPaused(true, 755);
@@ -129,11 +185,11 @@ test('projekcja DOM po przywróceniu pokazuje model, a dane wizualne nie steruj�
     assert.equal(game.frames.size, 1);
 });
 
-test('formularz końcowy przekazuje do PHP dotychczasowe podsumowanie v2 i identyfikator partii', async () => {
+test('formularz końcowy przekazuje do PHP podsumowanie v3 i identyfikator partii', async () => {
     const calls = [];
     const responses = { session: { csrf: 'token' }, start: { runId: 'server-id' }, result: { saved: true },
         history: { results: [], nextOffset: null } };
-    const game = createGame({}, {
+    const game = createGame({ gameSpeed: '1.5' }, {
         location: new URL('http://localhost/farmwars/'),
         fetch: async (url, options) => {
             const action = url.searchParams.get('action');
@@ -142,7 +198,7 @@ test('formularz końcowy przekazuje do PHP dotychczasowe podsumowanie v2 i ident
         }
     });
     game.start();
-    game.advance(1020);
+    game.advance(2000);
     game.run('gameOver(); renderGameState();');
     const form = game.document.getElementById('endScreen').querySelector('form');
     form.querySelector('input').value = 'Ogrodnik';
@@ -151,6 +207,8 @@ test('formularz końcowy przekazuje do PHP dotychczasowe podsumowanie v2 i ident
     const result = calls.find(call => call.action === 'result');
     assert.ok(result);
     assert.equal(result.options.headers['X-CSRF-Token'], 'token');
+    assert.equal(game.summary().schemaVersion, 3);
+    assert.equal(game.summary().points.time, 3);
     assert.deepEqual(JSON.parse(result.options.body), {
         runId: 'server-id', nickname: 'Ogrodnik', summary: game.summary()
     });

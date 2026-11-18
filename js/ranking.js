@@ -78,12 +78,14 @@ function validateScoreSummary(summary) {
     const rules = GAME_CONFIG.scoring;
     const countMaps = { items: summary.itemsByType, enemies: summary.enemiesByType, resources: summary.resourcesByType };
     const expected = { time: 0, items: 0, enemies: 0, resources: 0 };
-    if (![1, 2].includes(summary.schemaVersion) || summary.rulesetId !== GAME_CONFIG.rulesetId ||
+    if (![1, 2, 3].includes(summary.schemaVersion) || summary.rulesetId !== GAME_CONFIG.rulesetId ||
         !Number.isFinite(summary.activeTimeSeconds) || summary.activeTimeSeconds < 0 ||
         summary.activeTimeSeconds > Number.MAX_SAFE_INTEGER / 1000 || !isRecord(summary.points)) {
         throw new Error('Nieprawidłowe statystyki wyniku.');
     }
-    expected.time = Math.floor(summary.activeTimeSeconds) * rules.pointsPerSecond;
+    const speedStatistics = summary.schemaVersion >= 2 ? validateSpeedStatistics(summary) : {};
+    const scoringTime = summary.schemaVersion === 3 ? speedStatistics.simulationTimeSeconds : summary.activeTimeSeconds;
+    expected.time = Math.floor(scoringTime) * rules.pointsPerSecond;
     for (const [category, counts] of Object.entries(countMaps)) {
         if (!isRecord(counts)) throw new Error('Nieprawidłowe statystyki wyniku.');
         for (const [type, count] of Object.entries(counts)) {
@@ -101,7 +103,6 @@ function validateScoreSummary(summary) {
         throw new Error('Score nie zgadza się ze statystykami.');
     }
     // Zamknięta lista pól; nie kopiujemy dowolnych właściwości przekazanych przez wywołującego.
-    const speedStatistics = summary.schemaVersion === 2 ? validateSpeedStatistics(summary) : {};
     return JSON.parse(JSON.stringify({
         schemaVersion: summary.schemaVersion, rulesetId: summary.rulesetId,
         runId: summary.runId, finishedAt: summary.finishedAt, totalScore: summary.totalScore,

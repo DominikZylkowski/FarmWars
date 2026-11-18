@@ -40,7 +40,7 @@ function validateResult(array $input, array $rules): array
     requireValid(is_string($nickname) && preg_match('/^.{3,20}$/usD', $nickname) === 1 &&
         preg_match('/[\x{0000}-\x{001F}\x{007F}-\x{009F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', $nickname) === 0);
     $summary = $input['summary'] ?? null;
-    requireValid(is_array($summary) && ($summary['schemaVersion'] ?? null) === 2 &&
+    requireValid(is_array($summary) && in_array($summary['schemaVersion'] ?? null, [2, 3], true) &&
         ($summary['rulesetId'] ?? null) === 'farmwars-1' &&
         in_array($summary['status'] ?? null, ['won', 'lost'], true));
     $active = $summary['activeTimeSeconds'] ?? null;
@@ -75,7 +75,8 @@ function validateResult(array $input, array $rules): array
     $expected = $previous['atSimulationSeconds'] + ($active - $previous['atActiveSeconds']) * $previous['gameSpeed'];
     requireValid(validTime($simulation) && $previous['gameSpeed'] == ($summary['gameSpeed'] ?? null));
     requireValid(nearTime($simulation, $expected));
-    $points = ['time' => (int) floor($active) * $rules['pointsPerSecond']];
+    $scoringTime = $summary['schemaVersion'] === 3 ? $simulation : $active;
+    $points = ['time' => (int) floor($scoringTime) * $rules['pointsPerSecond']];
     $counts = [];
     $maps = [];
     foreach (['items' => 'itemsCrafted', 'enemies' => 'enemiesDefeated', 'resources' => 'resourcesCollected'] as $category => $field) {

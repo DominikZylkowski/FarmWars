@@ -33,8 +33,17 @@ function isTileOccupied(tile, includeEnemies = true) {
     ))));
 }
 
+function getShopCost(item) {
+    if (typeof serverGame !== 'undefined' && serverGame) {
+        return Object.hasOwn(serverShopItems, item) ? serverShopItems[item] : null;
+    }
+    if (!Object.hasOwn(shopItems, item)) return null;
+    return GAME_CONFIG.freeLocalPurchases ? {} : shopItems[item];
+}
+
 function canAfford(item) {
-    return Object.hasOwn(shopItems, item) && Object.entries(shopItems[item]).every(
+    const cost = getShopCost(item);
+    return cost !== null && Object.entries(cost).every(
         ([resource, price]) => gameState[RESOURCE_BALANCES[resource]] >= price
     );
 }
@@ -43,13 +52,17 @@ function placeItem(tileId, item) {
     const tile = Number.isInteger(tileId) ? gameState.tiles[tileId] : null;
     if (gameState.gamePaused || gameState.gameEnded || !tile || isTileOccupied(tile) || !canAfford(item)) return false;
 
-    for (const [resource, price] of Object.entries(shopItems[item])) {
+    for (const [resource, price] of Object.entries(getShopCost(item))) {
         gameState[RESOURCE_BALANCES[resource]] -= price;
     }
     const now = getGameTime();
     tile.object = createBoardObject(item, { hp: item === 'seedling' ? 2 : GAME_CONFIG.hpValues[item] });
     if (item === 'seedling') tile.object.growthAt = Math.floor(now) + GAME_CONFIG.treeGrowthTime;
     if (item === 'cannon') tile.object.lastShot = now - 1000;
+    if (item === 'quarry') {
+        tile.object.level = 1;
+        tile.object.nextStoneAt = now + GAME_CONFIG.quarryProductionInterval;
+    }
     awardScoreForEvent('items', item, tile.object.id);
     return true;
 }
@@ -61,24 +74,34 @@ function collectResource(tileId) {
     switch (object.type) {
         case 'grass': gameState.seedCount += object.size; break;
         case 'stone': gameState.stoneCount += object.size; break;
-        case 'tree':
-            gameState.woodCount += 2;
-            awardScoreForEvent('resources', 'tree', object.id);
-            break;
         default: return false;
     }
     tile.object = null;
     return true;
 }
 
-function growToTree(tile) {
+function growToTree(tile, now = getGameTime()) {
     if (tile.object?.type !== 'seedling') return;
-    tile.object = { id: tile.object.id, type: 'tree', hp: GAME_CONFIG.hpValues.tree };
+    tile.object = {
+        id: tile.object.id, type: 'tree', hp: GAME_CONFIG.hpValues.tree,
+        level: 1, nextWoodAt: now + GAME_CONFIG.treeProductionInterval
+    };
 }
 
 function updateTreeGrowth(now) {
     for (const tile of gameState.tiles) {
-        if (tile.object?.type === 'seedling' && now >= tile.object.growthAt) growToTree(tile);
+        const object = tile.object;
+        if (object?.type === 'quarry' && now >= object.nextStoneAt) {
+            object.nextStoneAt += GAME_CONFIG.quarryProductionInterval;
+            gameState.stoneCount += GAME_CONFIG.quarryStonePerLevel[(object.level ?? 1) - 1];
+        }
+        if (object?.type === 'seedling' && now >= object.growthAt) growToTree(tile, now);
+        if (object?.type !== 'tree') continue;
+        object.nextWoodAt ??= now + GAME_CONFIG.treeProductionInterval;
+        if (now < object.nextWoodAt) continue;
+        object.nextWoodAt += GAME_CONFIG.treeProductionInterval;
+        gameState.woodCount += GAME_CONFIG.treeWoodPerLevel[(object.level ?? 1) - 1];
+        awardScoreForEvent('resources', 'tree', object.id);
     }
 }
 
@@ -87,7 +110,12 @@ function spawnRandomResource(type) {
     if (!freeTiles.length) return;
     const tile = freeTiles[Math.floor(gameRandom() * freeTiles.length)];
     const roll = gameRandom();
-    const size = roll < 0.5 ? 1 : roll < 0.8 ? 2 : 3;
+    let size = roll < 0.5 ? 1 : roll < 0.8 ? 2 : 3;
+    if (type === 'stone' && gameState.level === 1 && !gameState.isInvasionActive) {
+        const bonus = Math.min(size - 1, gameState.firstWaveStoneBonus ?? 0);
+        gameState.firstWaveStoneBonus = (gameState.firstWaveStoneBonus ?? 0) - bonus;
+        size = 1 + bonus;
+    }
     tile.object = createBoardObject(type, { size, hp: 0 });
 }
 
@@ -119,10 +147,64 @@ function initializeGameModel(seed, epochMs, preferences = {}) {
     scheduleGameTask('stone', GAME_CONFIG.spawnIntervals.stone, true);
 }
 
+function getProducerUpgrade(object) {
+    if (!object || (object.type !== 'tree' && object.type !== 'quarry')) return null;
+    const tree = object.type === 'tree';
+    const level = object.level ?? 1;
+    const cost = GAME_CONFIG.producerUpgradeCosts[level - 1];
+    const production = tree ? GAME_CONFIG.treeWoodPerLevel : GAME_CONFIG.quarryStonePerLevel;
+    return {
+        level,
+        resource: tree ? 'wood' : 'stone',
+        production: production[level - 1],
+        nextProduction: production[level],
+        interval: tree ? GAME_CONFIG.treeProductionInterval : GAME_CONFIG.quarryProductionInterval,
+        cost: cost !== undefined && GAME_CONFIG.freeLocalPurchases ? 0 : cost
+    };
+}
+
+function upgradeBuilding(tileId, objectId) {
+    const object = gameState.tiles[tileId]?.object;
+    if (gameState.gamePaused || gameState.gameEnded || !object || object.id !== objectId) return false;
+    const upgrade = getProducerUpgrade(object);
+    if (upgrade?.cost === undefined) return false;
+    const balance = RESOURCE_BALANCES[upgrade.resource];
+    if (gameState[balance] < upgrade.cost) return false;
+    gameState[balance] -= upgrade.cost;
+    object.level = upgrade.level + 1;
+    return true;
+}
+
+function getFenceRepair(object) {
+    if (!object || (object.type !== 'woodFence' && object.type !== 'stoneWall')) return null;
+    const resource = object.type === 'woodFence' ? 'wood' : 'stone';
+    const maxHp = GAME_CONFIG.hpValues[object.type];
+    return {
+        resource,
+        cost: (getShopCost(object.type)[resource] ?? 0) / 4,
+        maxHp,
+        repairedHp: Math.min(maxHp, object.hp + maxHp / 2)
+    };
+}
+
+function repairBuilding(tileId, objectId) {
+    const object = gameState.tiles[tileId]?.object;
+    if (gameState.gamePaused || gameState.gameEnded || !object || object.id !== objectId) return false;
+    const repair = getFenceRepair(object);
+    if (!repair || object.hp >= repair.maxHp) return false;
+    const balance = RESOURCE_BALANCES[repair.resource];
+    if (gameState[balance] < repair.cost) return false;
+    gameState[balance] -= repair.cost;
+    object.hp = repair.repairedHp;
+    return true;
+}
+
 function applyGameAction(action) {
     switch (action?.type) {
         case 'collect': return collectResource(action.tileId);
         case 'place': return placeItem(action.tileId, action.item);
+        case 'upgrade': return upgradeBuilding(action.tileId, action.objectId);
+        case 'repair': return repairBuilding(action.tileId, action.objectId);
         case 'hit': return damageEnemy(gameState.activeEnemies.find(enemy => enemy.id === action.enemyId), 2);
         default: return false;
     }

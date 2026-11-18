@@ -13,6 +13,7 @@ test('PHP i JS: zgodność losowania, pierwszej fali, ruchu, armaty i punktacji'
     for (const file of ['config.js', 'runtime.js', 'score.js', 'game_model.js', 'war_logic.js']) {
         run(fs.readFileSync(path.join(__dirname, '../js', file), 'utf8'));
     }
+    run('GAME_CONFIG.baseStoneCount = 4; GAME_CONFIG.firstWaveStoneLimit = 100;');
     const initial = `initializeGameModel(123456, 0); gameState.gameStarted = true;
         startScore('parity'); setSimulationPaused(false, 0);`;
     run(initial);
@@ -27,7 +28,8 @@ test('PHP i JS: zgodność losowania, pierwszej fali, ruchu, armaty i punktacji'
     }
     run(`${initial} gameState.tiles.forEach(t => { t.object = null; });
         handleInvasionStart(); spawnEnemy(0, 'boss');
-        gameState.woodCount = 20; gameState.stoneCount = 15; placeItem(8, 'cannon');`);
+        gameState.woodCount = shopItems.cannon.wood; gameState.stoneCount = shopItems.cannon.stone;
+        placeItem(8, 'cannon');`);
     for (const now of [10, 100, 300, 1000, 1400, 2800]) {
         trace.push(JSON.parse(run(`advanceGameTo(${now}); JSON.stringify({
             enemies: ${enemies},

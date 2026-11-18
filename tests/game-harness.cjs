@@ -103,6 +103,18 @@ function createGame(storedValues = {}, browser = {}) {
     add('div', 'gameGrid', board);
     const menu = add('div', 'gameMenu', root);
     add('button', 'startGameButton', menu);
+    const savedGameChoice = add('section', 'savedGameChoice', menu);
+    savedGameChoice.hidden = true;
+    add('button', 'continueSavedGameButton', savedGameChoice);
+    add('button', 'restartSavedGameButton', savedGameChoice);
+    const buildingUpgrade = add('section', 'buildingUpgrade', root);
+    buildingUpgrade.hidden = true;
+    add('img', 'buildingUpgradeIcon', buildingUpgrade);
+    add('h2', 'buildingUpgradeTitle', buildingUpgrade);
+    add('span', 'buildingUpgradeLevel', buildingUpgrade);
+    add('p', 'buildingUpgradeProduction', buildingUpgrade);
+    add('button', 'upgradeBuildingButton', buildingUpgrade);
+    add('button', 'closeBuildingUpgradeButton', buildingUpgrade);
     add('input', 'volumeRange', menu);
     add('output', 'gameSpeedValue', menu);
     add('strong', 'gameDifficultyValue', menu);
@@ -111,7 +123,9 @@ function createGame(storedValues = {}, browser = {}) {
         band.dataset.speedLevel = level;
     }
     add('button', 'rankingButton', menu);
-    add('div', 'tutorialOverlay', root);
+    const tutorial = add('div', 'tutorialOverlay', root);
+    add('span', 'tutorialStepProgress', tutorial);
+    add('p', 'tutorialStepText', tutorial);
     add('div', 'scoreDisplay', root);
     add('div', 'statusContainer', root);
     add('div', 'mainTopBar', root, 'topBar');
@@ -129,6 +143,7 @@ function createGame(storedValues = {}, browser = {}) {
         window: {
             location: browser.location,
             innerWidth: 2000,
+            innerHeight: 900,
             addEventListener: (name, handler) => listeners.set(`window:${name}`, handler),
             localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) }
         },

@@ -5,7 +5,7 @@ const tileViews = [];
 const tileIds = new WeakMap();
 const enemyViews = new Map();
 const projectileViews = new Map();
-const destructibleItems = new Set(['woodFence', 'stoneWall', 'tree', 'cannon']);
+const destructibleItems = new Set(['woodFence', 'stoneWall', 'tree', 'cannon', 'quarry']);
 
 function scheduleGameFrame() {
     if (gameFrameId !== null || gameState.gamePaused || gameState.gameEnded || document.hidden) return;
@@ -14,6 +14,7 @@ function scheduleGameFrame() {
         if (gameState.gamePaused || gameState.gameEnded || document.hidden) return;
         advanceGameTo(performance.now());
         renderGameState();
+        if (!gameState.gameEnded && performance.now() >= nextLocalSaveAt) saveLocalGame();
         scheduleGameFrame();
     });
 }
@@ -44,7 +45,7 @@ function renderBoard() {
         element.className = `game-tile ${GAME_CONFIG.tileClassNames[(tile.row + tile.column) % 2]}`;
         tileIds.set(element, tile.id);
         grid.appendChild(element);
-        tileViews.push({ element, object: null, healthBar: null, id: null, type: null, lastShot: null });
+        tileViews.push({ element, object: null, healthBar: null, levelBadge: null, id: null, type: null, lastShot: null });
     }
 }
 
@@ -56,6 +57,7 @@ function renderTile(tile) {
     if (view.id !== id || view.type !== type) {
         view.object?.remove();
         view.object = null;
+        view.levelBadge = null;
         view.healthBar?.remove();
         view.healthBar = null;
         view.id = id;
@@ -69,10 +71,20 @@ function renderTile(tile) {
                 element.className = `game-tile__placed-item game-tile__item--${type}`;
                 element.style.backgroundImage = `url('${itemImages[type]}')`;
                 if (type === 'cannon') element.addEventListener('animationend', () => element.classList.remove('is-shooting'));
+                if (!serverGame && (type === 'tree' || type === 'quarry')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'game-tile__level';
+                    element.appendChild(badge);
+                    view.levelBadge = badge;
+                }
             }
             view.element.appendChild(element);
             view.object = element;
         }
+    }
+    if (view.levelBadge) {
+        const label = `Poz. ${object.level ?? 1}`;
+        if (view.levelBadge.textContent !== label) view.levelBadge.textContent = label;
     }
     const hp = String(object?.hp ?? 0);
     const hpChanged = view.element.dataset.hp !== hp;
@@ -88,6 +100,9 @@ function renderTile(tile) {
         } else if (hpChanged) {
             renderHealthFill(view.healthBar.firstChild, object.hp, GAME_CONFIG.hpValues[type]);
         }
+    } else if (view.healthBar) {
+        view.healthBar.remove();
+        view.healthBar = null;
     }
     const opacity = object?.lastDamagedAt + 100 > simulatedUntil ? '0.7' : '';
     if (view.element.style.opacity !== opacity) view.element.style.opacity = opacity;
@@ -185,12 +200,14 @@ function renderGameState() {
         updateScoreUI();
     }
     updateVisualHighlights();
+    updateBuildingUpgrade();
     renderEndScreenIfNeeded();
 }
 
 function renderEndScreenIfNeeded() {
     if (gameState.gameEnded && renderedEnd !== scoreState.runId) {
         renderedEnd = scoreState.runId;
+        saveLocalGame();
         stopGameFrame();
         document.getElementById('appScale')?.classList.add('app-scale--paused');
         if (scoreState.status === 'won') {
@@ -215,6 +232,7 @@ function restoreGameView(snapshot) {
     if (document.hidden) setSimulationPaused(true, now);
     stopGameFrame();
     selectedItemToPlace = null;
+    closeBuildingUpgrade();
     document.getElementById('endScreen')?.remove();
     for (const element of [...enemyViews.values(), ...projectileViews.values()]) element.remove();
     enemyViews.clear();

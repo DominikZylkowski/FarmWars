@@ -281,7 +281,7 @@ const serverGame = (() => {
         controls.append(message, retry, fullGame, newRun);
         document.getElementById('appScale').prepend(controls);
         startButton = document.getElementById('startGameButton');
-        startButton.onclick = () => {
+        const startOrPause = () => {
             if (!client.state) return open();
             if (isOnline && client.state.paused && client.state.simulationMs === 0 &&
                 !gameState.tutorialCompleted && !gameState.tutorialVisible) {
@@ -291,8 +291,15 @@ const serverGame = (() => {
             }
             return command(client.state.paused ? 'resume' : 'pause');
         };
+        startButton.onclick = startOrPause;
         syncPauseView(true, true);
-        open();
+        const choosing = isOnline && pointer.runId && showSavedGameChoice(async () => {
+            message.textContent = 'Łączenie z serwerem…';
+            await open();
+            if (client.state?.paused && !gameState.gameEnded) startOrPause();
+        }, restart);
+        if (choosing) message.textContent = 'Masz zapisaną rozgrywkę online.';
+        else open();
         let nextPoll = 0;
         setInterval(async () => {
             const state = client.state;

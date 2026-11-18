@@ -22,7 +22,7 @@ test('dokładnie 10 wartości, domyślne 1× i odczyt preferencji', () => {
     }
 });
 
-test('wszystkie szybkości skalują ruch i zegar, ale nie punkty za czas', () => {
+test('wszystkie szybkości skalują ruch, zegar i punkty za czas', () => {
     for (const speed of speeds) {
         const game = createGame({ gameSpeed: String(speed) });
         game.start();
@@ -36,18 +36,18 @@ test('wszystkie szybkości skalują ruch i zegar, ale nie punkty za czas', () =>
         close(game.run('gameState.activeEnemies[0].offsetX'), 0.55 * 60 * 4 * speed);
         close(game.summary().simulationTimeSeconds, 4 * speed);
         close(game.summary().activeTimeSeconds, 4);
-        assert.equal(game.summary().points.time, 4);
+        assert.equal(game.summary().points.time, 4 * speed);
     }
 });
 
-test('60 rzeczywistych sekund przy 3× daje 60 punktów i 180 sekund symulacji', () => {
+test('60 rzeczywistych sekund przy 3× daje 180 punktów i 180 sekund symulacji', () => {
     const game = createGame({ gameSpeed: '3' });
     game.start();
     game.run('gameState.prepTime = 100000;');
     game.advance(60000, 30);
     close(game.summary().activeTimeSeconds, 60);
     close(game.summary().simulationTimeSeconds, 180);
-    assert.equal(game.summary().totalScore, 60);
+    assert.equal(game.summary().totalScore, 180);
 });
 
 test('delta pocisków działa przy 0,75×, 2× i 3× również przy 10/30/60/144 FPS', () => {
@@ -98,7 +98,7 @@ test('zmiana w aktywnej grze jest ciągła, a zmiany w pauzie nie dodają czasu'
     assert.deepEqual(summary.speedHistory.map(entry => entry.atActiveSeconds), [0, 2, 5, 5]);
     assert.equal(summary.initialGameSpeed, 1);
     assert.equal(summary.gameSpeed, 3);
-    assert.equal(summary.points.time, 6);
+    assert.equal(summary.points.time, 11);
     game.run('setGameSpeed(3);');
     assert.equal(game.summary().speedHistory.length, 4, 'input + change nie dublują zdarzeń');
 });
@@ -113,7 +113,7 @@ test('2× skaluje przygotowanie, wzrost, zasoby, spawn, ostrzał i pociski', () 
     growth.start();
     growth.run(`
         const tile = gameState.tiles.find(tile => !isTileOccupied(tile));
-        gameState.seedCount = 1; placeItem(tile.id, 'seedling');
+        gameState.seedCount = shopItems.seedling.seeds; placeItem(tile.id, 'seedling');
     `);
     growth.advance(7400);
     assert.equal(growth.run('tile.object.type'), 'seedling');
@@ -141,7 +141,7 @@ test('2× skaluje przygotowanie, wzrost, zasoby, spawn, ostrzał i pociski', () 
     assert.equal(combat.run('gameState.activeEnemies.length'), 1);
     combat.run(`
         const tile = gameState.tiles[0];
-        gameState.woodCount = 20; gameState.stoneCount = 15;
+        gameState.woodCount = shopItems.cannon.wood; gameState.stoneCount = shopItems.cannon.stone;
         placeItem(tile.id, 'cannon');
         gameState.activeEnemies[0].row = 0;
         var shots = 0; fireCannon = () => { shots++; };

@@ -2,6 +2,7 @@
 function updateAppScale() {
     fitBoardToViewport();
     renderGameState();
+    positionBuildingUpgrade();
 }
 
 function fitBoardToViewport() {
@@ -20,7 +21,55 @@ function fitBoardToViewport() {
 let appScaleResizeFrame = 0;
 let selectedItemToPlace = null;
 let draggedItem = null;
-const SHOP_SHORTCUTS = ['cannon', 'seedling', 'woodFence', 'stoneWall'];
+let selectedBuilding = null;
+const SHOP_SHORTCUTS = ['cannon', 'seedling', 'woodFence', 'stoneWall', 'quarry'];
+const LOCAL_GAME_SAVE_KEY = 'farmwarsLocalGame';
+let nextLocalSaveAt = 0;
+
+function saveLocalGame() {
+    if (serverGame || !gameState.gameStarted) return;
+    safeSetStoredValue(LOCAL_GAME_SAVE_KEY, gameState.gameEnded ? '' : JSON.stringify(exportGameState()));
+    nextLocalSaveAt = performance.now() + 5000;
+}
+
+function showSavedGameChoice(onContinue, onRestart) {
+    const menu = document.getElementById('gameMenu');
+    const choice = document.getElementById('savedGameChoice');
+    const resume = document.getElementById('continueSavedGameButton');
+    const restart = document.getElementById('restartSavedGameButton');
+    if (!menu || !choice || !resume || !restart) return false;
+    function choose(action) {
+        choice.hidden = true;
+        menu.classList.remove('menu--saved-game');
+        action();
+    }
+    menu.classList.add('menu--saved-game');
+    choice.hidden = false;
+    resume.onclick = () => choose(onContinue);
+    restart.onclick = () => choose(onRestart);
+    return true;
+}
+
+function offerLocalGameResume() {
+    const saved = safeGetStoredValue(LOCAL_GAME_SAVE_KEY);
+    if (!saved) return;
+    showSavedGameChoice(() => {
+        try {
+            const snapshot = JSON.parse(saved);
+            if (!snapshot.state.gameStarted || snapshot.state.gameEnded) throw new TypeError();
+            snapshot.state.gamePaused = true;
+            restoreGameView(snapshot);
+        } catch {
+            safeSetStoredValue(LOCAL_GAME_SAVE_KEY, '');
+            handleStartButton();
+            return;
+        }
+        if (!gameState.tutorialVisible) setGamePaused(false);
+    }, () => {
+        safeSetStoredValue(LOCAL_GAME_SAVE_KEY, '');
+        handleStartButton();
+    });
+}
 
 function scheduleAppScaleUpdate() {
     if (appScaleResizeFrame) cancelAnimationFrame(appScaleResizeFrame);
@@ -40,6 +89,7 @@ function setGamePaused(shouldPause, options = {}) {
     else scheduleGameFrame();
     renderGameState();
     if (!gameState.gameEnded) syncPauseView(shouldPause, options.showMenu ?? true);
+    if (shouldPause) saveLocalGame();
 }
 
 function syncPauseView(shouldPause, showMenu) {
@@ -83,12 +133,16 @@ function togglePause() {
 
 window.addEventListener('resize', scheduleAppScaleUpdate);
 window.addEventListener('orientationchange', scheduleAppScaleUpdate);
+window.addEventListener('scroll', positionBuildingUpgrade, { capture: true, passive: true });
 window.visualViewport?.addEventListener('resize', scheduleAppScaleUpdate);
+window.visualViewport?.addEventListener('scroll', positionBuildingUpgrade);
 document.addEventListener('visibilitychange', () => {
     if (!serverGame && document.hidden && gameState.gameStarted && !gameState.gamePaused) setGamePaused(true);
+    if (document.hidden) saveLocalGame();
 });
 window.addEventListener('pagehide', () => {
     if (!serverGame && gameState.gameStarted && !gameState.gamePaused) setGamePaused(true);
+    saveLocalGame();
 });
 
 // ------------------------- System Przeciągania (Drag & Drop) -------------------------
@@ -155,11 +209,24 @@ const RESOURCE_ICONS = {
 };
 
 function renderShopCosts() {
-    Object.entries(shopItems).forEach(([item, cost]) => {
+    Object.keys(shopItems).forEach(item => {
         const container = document.getElementById(`${item}Costs`);
         if (!container) return;
 
         container.innerHTML = '';
+        const cost = getShopCost(item);
+        if (!cost) {
+            const entry = container.closest('.shop-item');
+            if (entry) entry.hidden = true;
+            return;
+        }
+        if (Object.keys(cost).length === 0) {
+            const label = document.createElement('div');
+            label.className = 'shop-item__cost';
+            label.textContent = 'Za darmo';
+            container.appendChild(label);
+            return;
+        }
 
         Object.entries(cost).forEach(([resource, amount]) => {
             const row = document.createElement('div');
@@ -180,22 +247,33 @@ function renderShopCosts() {
     });
 }
 
+const TUTORIAL_STORAGE_KEY = serverGame ? 'farmwarsTutorialCompleted' : 'farmwarsTutorialCompletedV2';
 const TUTORIAL_STEPS = [
     {
         title: 'Zbieraj surowce',
-        text: 'Klikaj na trawę, kamień i inne surowce na planszy, żeby dodać je do swojego ekwipunku.'
+        text: 'Klikaj kępki trawy, żeby zbierać nasiona, i złoża kamienia, żeby zdobywać kamień.'
     },
     {
         title: 'Buduj z topbaru',
-        text: 'Przeciągnij ikonę produktu z górnego paska na wolny kafelek. Obok przycisku od razu widzisz, co jest potrzebne.'
+        text: `Przeciągnij przedmiot ze sklepu na wolne pole albo wybierz go klawiszem ${serverGame ? '1–4' : '1–5'} i kliknij pole. Ceny są pod przyciskami. Przedmioty można wybrać, gdy masz dość surowców.`
     },
+    ...(serverGame ? [{
+        title: 'Zbieraj drewno',
+        text: 'Posadź sadzonkę i poczekaj, aż wyrośnie. Kliknij dojrzałe drzewo, żeby zebrać drewno.'
+    }] : [{
+        title: 'Posadź drzewo',
+        text: `${GAME_CONFIG.freeLocalPurchases ? 'Sadzonka jest darmowa.' : `Sadzonka kosztuje ${shopItems.seedling.seeds} nasion.`} Wyrasta po ${GAME_CONFIG.treeGrowthTime / 1000} sekundach czasu gry. Dojrzałe drzewo samo dodaje ${GAME_CONFIG.treeWoodPerLevel[0]} drewna co ${GAME_CONFIG.treeProductionInterval / 1000} sekund.`
+    }, {
+        title: 'Postaw kamieniołom',
+        text: `${GAME_CONFIG.freeLocalPurchases ? 'Kamieniołom jest darmowy.' : `Kamieniołom kosztuje ${shopItems.quarry.stone} kamienia i ${shopItems.quarry.wood} drewna.`} Na poziomie 1 daje ${GAME_CONFIG.quarryStonePerLevel[0]} kamienia co ${GAME_CONFIG.quarryProductionInterval / 1000} sekund. Kliknij kamieniołom lub dojrzałe drzewo, aby je ulepszyć.`
+    }]),
     {
         title: 'Armaty strzelają same',
-        text: 'Postaw armatę na swojej stronie planszy, a sama będzie ostrzeliwać robaki, gdy pojawią się w tym rzędzie.'
+        text: 'Armata strzela do robaków w swoim rzędzie. Płoty i murki je zatrzymują, a po pierwszym trafieniu potwora zobaczysz pasek życia zaatakowanego obiektu.'
     },
     {
-        title: 'Pauza działa zawsze',
-        text: 'Menu i ESC zatrzymują czas. Możesz wrócić do gry bez tracenia postępu i bez rozjeżdżania akcji.'
+        title: 'Wstrzymaj grę',
+        text: 'Menu i Esc wstrzymują grę. Jeśli masz wybrany przedmiot, Esc najpierw anuluje wybór.'
     }
 ];
 
@@ -233,9 +311,10 @@ function finishTutorial() {
 
     gameState.tutorialVisible = false;
     gameState.tutorialCompleted = true;
-    safeSetStoredValue('farmwarsTutorialCompleted', '1');
+    safeSetStoredValue(TUTORIAL_STORAGE_KEY, '1');
     gameState.tutorialStep = 0;
     setGamePaused(false, { showMenu: false });
+    saveLocalGame();
 }
 
 function advanceTutorial() {
@@ -248,6 +327,7 @@ function advanceTutorial() {
 
     gameState.tutorialStep += 1;
     renderTutorialStep();
+    saveLocalGame();
 }
 
 function skipTutorial() {
@@ -269,6 +349,7 @@ function handleStartButton() {
         if (menu) menu.classList.add('is-hidden');
         if (gameState.tutorialCompleted) setGamePaused(false);
         else showTutorial();
+        saveLocalGame();
         return;
     }
 
@@ -317,10 +398,106 @@ function updateGameSpeedUI() {
     updateTimerUI();
 }
 
+function positionBuildingUpgrade() {
+    if (!selectedBuilding) return;
+    const panel = document.getElementById('buildingUpgrade');
+    const tile = tileViews[selectedBuilding.tileId]?.element;
+    if (!panel || panel.hidden || !tile) return;
+
+    const anchor = tile.getBoundingClientRect();
+    const { width, height } = panel.getBoundingClientRect();
+    const gap = 8;
+    const viewport = window.visualViewport;
+    const leftEdge = viewport?.offsetLeft ?? 0;
+    const topEdge = viewport?.offsetTop ?? 0;
+    const rightEdge = leftEdge + (viewport?.width ?? window.innerWidth);
+    const bottomEdge = topEdge + (viewport?.height ?? window.innerHeight);
+    let left = anchor.right;
+    let top = anchor.top;
+
+    if (left + width > rightEdge - gap) {
+        left = anchor.left - width;
+        if (left < leftEdge + gap) {
+            left = anchor.left + (anchor.width - width) / 2;
+            top = anchor.bottom;
+            if (top + height > bottomEdge - gap) top = anchor.top - height;
+        }
+    }
+
+    panel.style.left = `${Math.max(leftEdge + gap, Math.min(left, rightEdge - width - gap))}px`;
+    panel.style.top = `${Math.max(topEdge + gap, Math.min(top, bottomEdge - height - gap))}px`;
+}
+
+function updateBuildingUpgrade() {
+    const panel = document.getElementById('buildingUpgrade');
+    if (!panel || (panel.hidden && !selectedBuilding)) return;
+    const object = gameState.tiles[selectedBuilding?.tileId]?.object;
+    const selected = object && object.id === selectedBuilding.objectId ? object : null;
+    const repair = getFenceRepair(selected);
+    const info = repair || getProducerUpgrade(selected);
+    if (!info || gameState.gamePaused || gameState.gameEnded) {
+        closeBuildingUpgrade();
+        return;
+    }
+    const unit = info.resource === 'wood' ? 'drewna' : 'kamienia';
+    const names = { tree: 'Drzewo', quarry: 'Kamieniołom', woodFence: 'Płot', stoneWall: 'Murek' };
+    const name = names[object.type];
+    const button = document.getElementById('upgradeBuildingButton');
+    const title = document.getElementById('buildingUpgradeTitle');
+    const level = document.getElementById('buildingUpgradeLevel');
+    const production = document.getElementById('buildingUpgradeProduction');
+    const costText = info.cost === 0 ? 'za darmo' : `${info.cost} ${unit}`;
+    const fullHealth = repair && object.hp >= repair.maxHp;
+    const levelText = repair ? '' : `Poziom ${info.level}/${GAME_CONFIG.producerUpgradeCosts.length + 1}`;
+    let productionText;
+    let buttonText;
+    if (repair) {
+        const health = fullHealth ? object.hp : `${object.hp} → ${repair.repairedHp}`;
+        productionText = `Życie: ${health} / ${repair.maxHp}`;
+        buttonText = fullHealth ? 'Pełne życie' : `Napraw · ${costText}`;
+    } else {
+        const amount = info.nextProduction === undefined ? info.production : `${info.production} → ${info.nextProduction}`;
+        productionText = `Produkcja: ${amount} ${unit} co ${info.interval / 1000} s`;
+        buttonText = info.cost === undefined ? 'Maksymalny poziom' : `Ulepsz na poziom ${info.level + 1} · ${costText}`;
+    }
+    if (title.textContent !== name) title.textContent = name;
+    const reposition = panel.hidden || level.textContent !== levelText || button.textContent !== buttonText;
+    if (level.textContent !== levelText) level.textContent = levelText;
+    level.hidden = Boolean(repair);
+    if (production.textContent !== productionText) production.textContent = productionText;
+    if (button.textContent !== buttonText) button.textContent = buttonText;
+    button.disabled = Boolean(fullHealth) || info.cost === undefined || gameState[RESOURCE_BALANCES[info.resource]] < info.cost;
+    panel.hidden = false;
+    if (reposition) positionBuildingUpgrade();
+}
+
+function closeBuildingUpgrade() {
+    tileViews[selectedBuilding?.tileId]?.element.classList.remove('game-tile--inspected');
+    selectedBuilding = null;
+    const panel = document.getElementById('buildingUpgrade');
+    if (panel) panel.hidden = true;
+}
+
+function inspectBuilding(tileId) {
+    if (serverGame || gameState.gamePaused || gameState.gameEnded) return false;
+    const object = gameState.tiles[tileId]?.object;
+    if (!getProducerUpgrade(object) && !getFenceRepair(object)) return false;
+    if (selectedBuilding?.tileId === tileId && selectedBuilding.objectId === object.id) return true;
+    closeBuildingUpgrade();
+    selectedBuilding = { tileId, objectId: object.id };
+    tileViews[tileId].element.classList.add('game-tile--inspected');
+    const icon = document.getElementById('buildingUpgradeIcon');
+    if (icon) icon.src = itemImages[object.type];
+    updateBuildingUpgrade();
+    return true;
+}
+
 function handleGridClick(event) {
     const tile = event.target.closest('.game-tile');
     if (!tile) return;
     const tileId = tileIds.get(tile);
+    if (inspectBuilding(tileId)) return;
+    closeBuildingUpgrade();
     if (selectedItemToPlace && tile.classList.contains('game-tile--can-place')) {
         handlePlayerAction({ type: 'place', tileId, item: selectedItemToPlace });
         return;
@@ -374,12 +551,13 @@ function updateMaxCraftUI() {
 }
 
 function calculateMaxCraft(item) {
-    const p = shopItems[item];
+    const p = getShopCost(item);
+    if (!p) return 0;
     let limits = [];
     if (p.wood) limits.push(Math.floor(gameState.woodCount / p.wood));
     if (p.stone) limits.push(Math.floor(gameState.stoneCount / p.stone));
     if (p.seeds) limits.push(Math.floor(gameState.seedCount / p.seeds));
-    return limits.length > 0 ? Math.min(...limits) : 0;
+    return limits.length > 0 ? Math.min(...limits) : gameState.tiles.filter(tile => !isTileOccupied(tile)).length;
 }
 
 function showEndScreen(title, text, color, btnText) {
@@ -436,11 +614,38 @@ function updateScoreUI() {
 }
 
 function setupInteraction() {
+    const upgrade = document.getElementById('upgradeBuildingButton');
+    const closeUpgrade = document.getElementById('closeBuildingUpgradeButton');
+    const upgradePanel = document.getElementById('buildingUpgrade');
+    if (upgrade) upgrade.onclick = () => {
+        if (!selectedBuilding) return;
+        const object = gameState.tiles[selectedBuilding.tileId]?.object;
+        const type = getFenceRepair(object) ? 'repair' : 'upgrade';
+        if (handlePlayerAction({ type, ...selectedBuilding })) saveLocalGame();
+    };
+    if (closeUpgrade) closeUpgrade.onclick = closeBuildingUpgrade;
+    upgradePanel?.addEventListener('pointerleave', event => {
+        if (event.pointerType !== 'mouse' || !selectedBuilding) return;
+        const tile = tileViews[selectedBuilding.tileId]?.element;
+        if (event.relatedTarget?.closest?.('.game-tile') !== tile) closeBuildingUpgrade();
+    });
     const rankingButton = document.getElementById('rankingButton');
     if (rankingButton) rankingButton.onclick = showRanking;
     const grid = document.getElementById('gameGrid');
     if (grid) {
         grid.onclick = handleGridClick;
+        grid.addEventListener('pointerover', event => {
+            if (event.pointerType !== 'mouse' || draggedItem || selectedItemToPlace) return;
+            inspectBuilding(tileIds.get(event.target.closest('.game-tile')));
+        });
+        grid.addEventListener('pointerout', event => {
+            if (event.pointerType !== 'mouse' || !selectedBuilding) return;
+            const tile = tileViews[selectedBuilding.tileId]?.element;
+            if (event.target.closest('.game-tile') !== tile) return;
+            if (event.relatedTarget?.closest?.('.game-tile') === tile ||
+                event.relatedTarget?.closest?.('#buildingUpgrade') === upgradePanel) return;
+            closeBuildingUpgrade();
+        });
         grid.ondragover = handleDragOver;
         grid.ondrop = handleDrop;
     }
@@ -487,7 +692,9 @@ function setupInteraction() {
     window.onkeydown = (e) => {
         if (e.repeat) return;
         if (e.key === 'Escape' && !gameState.tutorialVisible) {
-            if (selectedItemToPlace) {
+            if (selectedBuilding) {
+                closeBuildingUpgrade();
+            } else if (selectedItemToPlace) {
                 selectedItemToPlace = null;
                 updateVisualHighlights();
             } else {
@@ -497,7 +704,7 @@ function setupInteraction() {
         }
         if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey ||
             e.target?.closest?.('input, textarea, select, [contenteditable]')) return;
-        const index = ['1', '2', '3', '4'].indexOf(e.key);
+        const index = ['1', '2', '3', '4', '5'].indexOf(e.key);
         if (index === -1 || !gameState.gameStarted || gameState.gamePaused ||
             gameState.gameEnded || gameState.tutorialVisible || draggedItem) return;
         e.preventDefault();
@@ -519,13 +726,16 @@ function setupInteraction() {
 document.addEventListener('DOMContentLoaded', () => {
     initializeGameModel(Math.floor(Math.random() * 4294967296), Date.now() - performance.now(), {
         gameSpeed: getStoredGameSpeed(),
-        tutorialCompleted: safeGetStoredValue('farmwarsTutorialCompleted') === '1'
+        tutorialCompleted: safeGetStoredValue(TUTORIAL_STORAGE_KEY) === '1'
     });
     renderBoard();
     fitBoardToViewport();
     setupInteraction();
     if (serverGame) serverGame.setup();
-    else showServerGameLinks();
+    else {
+        showServerGameLinks();
+        offerLocalGameResume();
+    }
     renderGameState();
     scheduleAppScaleUpdate();
     document.fonts?.ready.then(scheduleAppScaleUpdate);

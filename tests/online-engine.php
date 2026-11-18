@@ -85,7 +85,7 @@ checkOnline($state['simulationMs'] === 120000, 'Pauza zatrzymuje symulację');
 applyOnlineCommand($state, $rules, 'set_speed', ['speed' => 1.5], 55000);
 applyOnlineCommand($state, $rules, 'resume', [], 55000);
 catchUp($state, $rules, 57000);
-checkOnline($state['simulationMs'] === 123000 && onlineScore($state, $rules)['points']['time'] === 42, 'Czas i szybkość');
+checkOnline($state['simulationMs'] === 123000 && onlineScore($state, $rules)['points']['time'] === 123, 'Czas i szybkość');
 checkOnline(count($state['enemies']) === 1, 'Harmonogram pierwszej fali');
 
 $state = newOnlineState($rules, 0, 42);

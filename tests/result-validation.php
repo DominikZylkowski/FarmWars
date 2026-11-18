@@ -26,6 +26,13 @@ $result = validateResult($input, $rules);
 if ($result['nickname'] !== 'Żaba' || $result['activeMs'] !== 2500 || $result['total'] !== 59) {
     throw new RuntimeException('Incorrect normalized result');
 }
+$updated = $input;
+$updated['summary']['schemaVersion'] = 3;
+$updated['summary']['points']['time'] = 3;
+$updated['summary']['totalScore'] = 60;
+if (validateResult($updated, $rules)['total'] !== 60) {
+    throw new RuntimeException('Incorrect simulation-time score');
+}
 foreach ([
     ['totalScore' => 60], ['simulationTimeSeconds' => 4], ['itemsByType' => ['unknown' => 1]],
     ['status' => 'active'], ['enemiesDefeated' => '1'], ['speedHistory' => []],

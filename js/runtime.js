@@ -138,6 +138,12 @@ function isSnapshotBoardValid(state) {
         if (object.type === 'grass' || object.type === 'stone') return [1, 2, 3].includes(object.size);
         if (object.type === 'seedling') return Number.isFinite(object.growthAt);
         if (object.type === 'cannon') return Number.isFinite(object.lastShot);
+        if (object.type === 'tree' || object.type === 'quarry') {
+            if (object.level !== undefined &&
+                (!Number.isInteger(object.level) || object.level < 1 || object.level > GAME_CONFIG.producerUpgradeCosts.length + 1)) return false;
+            if (object.type === 'quarry') return Number.isFinite(object.nextStoneAt);
+            if (object.nextWoodAt !== undefined && !Number.isFinite(object.nextWoodAt)) return false;
+        }
         return ['tree', 'woodFence', 'stoneWall'].includes(object.type);
     }) && state.activeEnemies.every(enemy => hasUniqueId(enemy) && inRow(enemy) &&
         inColumn(enemy.currentCol) && ['normal', 'boss'].includes(enemy.type) &&
@@ -188,6 +194,8 @@ function restoreGameState(snapshot, now = 0) {
         if (Object.hasOwn(state, key)) gameState[key] = state[key];
     }
     scoreState = score;
+    scoreState.points.time = Math.floor(scoreState.simulationTimeMs / 1000) * GAME_CONFIG.scoring.pointsPerSecond;
+    updateScoreTotal();
     for (const category of Object.keys(scoredEvents)) scoredEvents[category] = new Set(scored[category]);
     scoreActiveBaselineMs = score.activeTimeMs;
     scoreSimulationBaselineMs = score.simulationTimeMs;
