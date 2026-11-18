@@ -5,6 +5,7 @@ const tileViews = [];
 const tileIds = new WeakMap();
 const enemyViews = new Map();
 const projectileViews = new Map();
+const destructibleItems = new Set(['woodFence', 'stoneWall', 'tree', 'cannon']);
 
 function scheduleGameFrame() {
     if (gameFrameId !== null || gameState.gamePaused || gameState.gameEnded || document.hidden) return;
@@ -43,7 +44,7 @@ function renderBoard() {
         element.className = `game-tile ${GAME_CONFIG.tileClassNames[(tile.row + tile.column) % 2]}`;
         tileIds.set(element, tile.id);
         grid.appendChild(element);
-        tileViews.push({ element, object: null, id: null, type: null, lastShot: null });
+        tileViews.push({ element, object: null, healthBar: null, id: null, type: null, lastShot: null });
     }
 }
 
@@ -55,6 +56,8 @@ function renderTile(tile) {
     if (view.id !== id || view.type !== type) {
         view.object?.remove();
         view.object = null;
+        view.healthBar?.remove();
+        view.healthBar = null;
         view.id = id;
         view.type = type;
         view.lastShot = object?.lastShot;
@@ -72,13 +75,33 @@ function renderTile(tile) {
         }
     }
     const hp = String(object?.hp ?? 0);
-    if (view.element.dataset.hp !== hp) view.element.dataset.hp = hp;
+    const hpChanged = view.element.dataset.hp !== hp;
+    if (hpChanged) view.element.dataset.hp = hp;
+    if (destructibleItems.has(type) && object.hp < GAME_CONFIG.hpValues[type]) {
+        if (!view.healthBar) {
+            const bar = document.createElement('div');
+            bar.className = 'game-tile__health';
+            bar.appendChild(document.createElement('div'));
+            view.element.appendChild(bar);
+            view.healthBar = bar;
+            renderHealthFill(bar.firstChild, object.hp, GAME_CONFIG.hpValues[type]);
+        } else if (hpChanged) {
+            renderHealthFill(view.healthBar.firstChild, object.hp, GAME_CONFIG.hpValues[type]);
+        }
+    }
     const opacity = object?.lastDamagedAt + 100 > simulatedUntil ? '0.7' : '';
     if (view.element.style.opacity !== opacity) view.element.style.opacity = opacity;
     if (type === 'cannon' && view.lastShot !== object.lastShot) {
         view.lastShot = object.lastShot;
         view.object.classList.add('is-shooting');
     }
+}
+
+function renderHealthFill(fill, hp, maxHp) {
+    const percent = Math.max(0, hp / maxHp * 100);
+    const colors = GAME_CONFIG.hpColors;
+    fill.style.width = `${percent}%`;
+    fill.style.background = percent > 60 ? colors.high : percent > 30 ? colors.medium : colors.low;
 }
 
 function syncEntities(views, entities, create, update) {
@@ -135,10 +158,7 @@ function renderGameState() {
     const scale = tileViews[0].element.offsetWidth / gameState.geometry.tileWidth;
     syncEntities(enemyViews, gameState.activeEnemies, createEnemyView, (element, enemy) => {
         element.style.transform = `translate(-50%, -50%) translateX(-${enemy.offsetX * scale}px)`;
-        const percent = Math.max(0, enemy.hp / enemy.maxHp * 100);
-        element.firstChild.style.width = `${percent}%`;
-        const colors = GAME_CONFIG.hpColors;
-        element.firstChild.style.background = percent > 60 ? colors.high : percent > 30 ? colors.medium : colors.low;
+        renderHealthFill(element.firstChild, enemy.hp, enemy.maxHp);
     });
     if (projectileViews.size || gameState.activeProjectiles.length) {
         const root = (document.getElementById('appScale') || document.body).getBoundingClientRect();

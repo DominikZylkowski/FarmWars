@@ -462,6 +462,23 @@ body {
   image-rendering: pixelated;
 }
 
+.game-tile__health {
+  position: absolute;
+  bottom: 8%;
+  left: 15%;
+  width: 70%;
+  height: 8%;
+  min-height: 4px;
+  z-index: 1001;
+  pointer-events: none;
+  border: 1px solid #000000;
+  background: #252525;
+  box-shadow: 0 0 0 1px #fff;
+}
+.game-tile__health > div {
+  height: 100%;
+}
+
 /* ========================= ENEMIES & PROJECTILES ========================= */
 .enemy-worm {
   width: 120px;

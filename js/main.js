@@ -124,12 +124,14 @@ function handleDrop(e) {
 function updateVisualHighlights() {
     const playing = gameState.gameStarted && !gameState.gamePaused &&
         !gameState.gameEnded && !gameState.tutorialVisible;
-    if (!playing) selectedItemToPlace = null;
+    if (!playing || (selectedItemToPlace && !canAfford(selectedItemToPlace))) {
+        selectedItemToPlace = null;
+    }
     const item = draggedItem || selectedItemToPlace;
     const canPlace = playing && item && canAfford(item);
     for (const id of SHOP_SHORTCUTS) {
         const button = document.getElementById(`${id}Button`);
-        const pressed = playing && item === id;
+        const pressed = Boolean(canPlace && item === id);
         if (button && button.getAttribute('aria-pressed') !== String(pressed)) {
             button.setAttribute('aria-pressed', String(pressed));
         }
@@ -500,6 +502,7 @@ function setupInteraction() {
             gameState.gameEnded || gameState.tutorialVisible || draggedItem) return;
         e.preventDefault();
         const item = SHOP_SHORTCUTS[index];
+        if (!canAfford(item)) return;
         selectedItemToPlace = selectedItemToPlace === item ? null : item;
         updateVisualHighlights();
     };
