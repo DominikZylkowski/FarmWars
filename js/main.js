@@ -23,7 +23,6 @@ function syncFullscreenButton() {
     }
 }
 
-let previousPortraitState = null;
 async function enterFullscreenAfterRotation() {
     if (!isMobileInterface() || isPortraitBlocked() || document.fullscreenElement ||
         !document.documentElement?.requestFullscreen || document.fullscreenEnabled === false) return;
@@ -31,9 +30,10 @@ async function enterFullscreenAfterRotation() {
         await document.documentElement.requestFullscreen();
         try { await window.screen?.orientation?.lock?.('landscape'); } catch { /* Obrót ręczny. */ }
         syncFullscreenButton();
+        syncDeviceLayout();
     } catch {
-        const prompt = document.getElementById('fullscreenPrompt');
-        if (prompt && !isPortraitBlocked()) prompt.hidden = false;
+        const status = document.getElementById('mobileLaunchStatus');
+        if (status) status.textContent = 'Dotknij przycisku ponownie, aby włączyć pełny ekran.';
     }
     scheduleAppScaleUpdate();
 }
@@ -69,23 +69,21 @@ function syncDeviceLayout() {
     viewportStyle?.setProperty('--viewport-top', `${viewport?.offsetTop ?? 0}px`);
     viewportStyle?.setProperty('--viewport-left', `${viewport?.offsetLeft ?? 0}px`);
     const mobile = isMobileInterface();
-    const hostname = window.location?.hostname ?? '';
-    document.body.classList.toggle('hosting-overlay-space', mobile && hostname.endsWith('.netlify.app'));
     const blocked = isPortraitBlocked();
-    const rotatedToLandscape = previousPortraitState === true && mobile && !blocked;
-    previousPortraitState = blocked;
-    if (rotatedToLandscape) void enterFullscreenAfterRotation();
-    if (blocked) {
-        const prompt = document.getElementById('fullscreenPrompt');
-        if (prompt) prompt.hidden = true;
-    }
+    const needsFullscreen = mobile && !blocked && !document.fullscreenElement &&
+        Boolean(document.documentElement?.requestFullscreen) && document.fullscreenEnabled !== false;
+    document.body.classList.toggle('fullscreen-entry', needsFullscreen);
+    const launch = document.getElementById('mobileLaunch');
+    if (launch) launch.hidden = !needsFullscreen;
+    const prompt = document.getElementById('fullscreenPrompt');
+    if (prompt) prompt.hidden = !needsFullscreen;
     document.body.classList.toggle('mobile-interface', mobile);
     document.body.classList.toggle('orientation-blocked', blocked);
     const guard = document.getElementById('rotationGuard');
     if (guard) guard.hidden = !blocked;
     const app = document.getElementById('appScale');
-    if (app) app.inert = blocked;
-    if (blocked) {
+    if (app) app.inert = blocked || needsFullscreen;
+    if (blocked || needsFullscreen) {
         closeBuildingUpgrade();
         document.getElementById('rankingDialog')?.close();
         if (gameState.gameStarted && !gameState.gamePaused && !gameState.gameEnded) setGamePaused(true);
@@ -173,7 +171,7 @@ function scheduleAppScaleUpdate() {
 }
 
 function setGamePaused(shouldPause, options = {}) {
-    if (!shouldPause && isPortraitBlocked()) return;
+    if (!shouldPause && (isPortraitBlocked() || document.body.classList.contains('fullscreen-entry'))) return;
     if (serverGame) return serverGame.pause(shouldPause);
     if (gameState.gameEnded) return;
     if (!shouldPause && (!gameState.gameStarted || gameState.tutorialVisible || document.hidden)) return;

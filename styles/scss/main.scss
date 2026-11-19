@@ -1703,28 +1703,28 @@ body {
   .mobile-interface { --mobile-shop-width: 160px; }
 }
 
-// Keep the host's fixed badge outside the playable area, even if hiding fails.
-.hosting-overlay-space {
-  --hosting-overlay-height: 64px;
-  .app-scale { height: calc(var(--viewport-height, 100dvh) - var(--hosting-overlay-height)); }
-  .menu {
-    top: calc(var(--viewport-top, 0px) + (var(--viewport-height, 100dvh) - var(--hosting-overlay-height)) / 2);
-    max-height: calc(var(--viewport-height, 100dvh) - var(--hosting-overlay-height) - 16px);
-  }
+.fullscreen-entry {
+  overflow: hidden;
+  .app-scale { visibility: hidden; }
 }
-.mobile-interface.hosting-overlay-space {
-  .building-upgrade {
-    bottom: calc(var(--hosting-overlay-height) + max(6px, env(safe-area-inset-bottom)));
-    max-height: min(160px, calc(var(--viewport-height, 100dvh) - var(--hosting-overlay-height) - var(--mobile-header-height) - 12px));
-  }
+.mobile-launch {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: #717d49 url('../../assets/images/farm-clearing.png') center / cover no-repeat;
+  h1 { margin: 0; color: #ffe59c; text-shadow: 3px 3px #302317; font-size: clamp(2.5rem, 8vh, 4rem); }
+  p { margin: 0; max-width: 400px; text-align: center; color: white; text-shadow: 1px 1px #302317; }
+  p:empty { display: none; }
+  &[hidden] { display: none; }
 }
 
 .fullscreen-prompt {
-  position: fixed;
-  z-index: 10000002;
-  bottom: calc(var(--hosting-overlay-height, 0px) + 8px + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
   max-width: calc(100% - 24px);
   min-height: 44px;
   padding: 6px 16px;

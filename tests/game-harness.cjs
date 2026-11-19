@@ -106,6 +106,8 @@ function createGame(storedValues = {}, browser = {}) {
     add('button', 'startGameButton', menu);
     add('button', 'fullscreenButton', menu);
     add('button', 'fullscreenPrompt', root).hidden = true;
+    add('section', 'mobileLaunch', body).hidden = true;
+    add('p', 'mobileLaunchStatus', body);
     add('small', 'fullscreenStatus', menu);
     const savedGameChoice = add('section', 'savedGameChoice', menu);
     savedGameChoice.hidden = true;
