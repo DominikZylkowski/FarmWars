@@ -46,6 +46,7 @@ function validateResult(array $input, array $rules): array
     $active = $summary['activeTimeSeconds'] ?? null;
     requireValid(validTime($active));
     $speeds = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0];
+    $speeds = array_merge($speeds, array_map(static fn($speed) => round($speed * 1.1, 6), $speeds));
     foreach (['initialGameSpeed', 'gameSpeed'] as $field) {
         $speed = $summary[$field] ?? null;
         requireValid((is_int($speed) || is_float($speed)) && in_array((float) $speed, $speeds, true));

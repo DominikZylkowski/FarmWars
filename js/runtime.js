@@ -8,7 +8,7 @@ let nextGameTimerId = 0;
 const gameTimers = new Map();
 
 function getGameTime(now = currentRealTime) {
-    return gameElapsedMs + (gameResumedAt === null ? 0 : (now - gameResumedAt) * gameState.gameSpeed);
+    return gameElapsedMs + (gameResumedAt === null ? 0 : (now - gameResumedAt) * getEffectiveGameSpeed());
 }
 
 function changeGameSpeed(speed, now) {
@@ -19,7 +19,7 @@ function changeGameSpeed(speed, now) {
         if (gameResumedAt !== null) gameResumedAt = now;
         setScoreClockRunning(scoreClockStartedAt !== null, now);
         gameState.gameSpeed = speed;
-        recordGameSpeedChange(speed);
+        recordGameSpeedChange(getEffectiveGameSpeed(speed));
     }
     return true;
 }
@@ -47,6 +47,10 @@ function runGameTimers(now) {
                 }
                 break;
             case 'grass':
+                if (!gameState.isInvasionActive) {
+                    for (let i = 0; i < GAME_CONFIG.grassPerSpawn; i++) spawnRandomResource('grass');
+                }
+                break;
             case 'stone':
                 if (!gameState.isInvasionActive) spawnRandomResource(timer.type);
                 break;
@@ -72,7 +76,7 @@ function advanceGameTo(now) {
     while (simulatedUntil + SIMULATION_STEP_MS <= target + 0.000001 && !gameState.gamePaused && !gameState.gameEnded) {
         simulatedUntil += SIMULATION_STEP_MS;
         // Moment zdarzenia wynika z kroku, bez względu na częstotliwość renderowania.
-        currentRealTime = gameResumedAt + (simulatedUntil - gameElapsedMs) / gameState.gameSpeed;
+        currentRealTime = gameResumedAt + (simulatedUntil - gameElapsedMs) / getEffectiveGameSpeed();
         runGameTimers(simulatedUntil);
         updateGameLoop(SIMULATION_STEP_MS / 1000, simulatedUntil);
     }
@@ -137,7 +141,9 @@ function isSnapshotBoardValid(state) {
         if (!hasUniqueId(object) || !Number.isFinite(object.hp)) return false;
         if (object.type === 'grass' || object.type === 'stone') return [1, 2, 3].includes(object.size);
         if (object.type === 'seedling') return Number.isFinite(object.growthAt);
-        if (object.type === 'cannon') return Number.isFinite(object.lastShot);
+        if (object.type === 'cannon') return Number.isFinite(object.lastShot) &&
+            (object.level === undefined || (Number.isInteger(object.level) && object.level >= 1 &&
+                object.level <= GAME_CONFIG.cannonDamagePerLevel.length));
         if (object.type === 'tree' || object.type === 'quarry') {
             if (object.level !== undefined &&
                 (!Number.isInteger(object.level) || object.level < 1 || object.level > GAME_CONFIG.producerUpgradeCosts.length + 1)) return false;
@@ -149,7 +155,11 @@ function isSnapshotBoardValid(state) {
         inColumn(enemy.currentCol) && ENEMY_TYPES.includes(enemy.type) &&
         [enemy.hp, enemy.maxHp, enemy.offsetX].every(Number.isFinite)) &&
         state.activeProjectiles.every(projectile => hasUniqueId(projectile) && inRow(projectile) &&
-            inColumn(projectile.column) && Number.isFinite(projectile.xOffset));
+            inColumn(projectile.column) && Number.isFinite(projectile.xOffset) &&
+            ['originX', 'originY', 'diameter'].every(key => projectile[key] === undefined ||
+                (Number.isFinite(projectile[key]) && projectile[key] > 0 && projectile[key] <= 1)) &&
+            (projectile.damage === undefined || (Number.isFinite(projectile.damage) &&
+                GAME_CONFIG.cannonDamagePerLevel.includes(projectile.damage))));
 }
 
 function isSnapshotTaskValid(entry) {
@@ -212,4 +222,5 @@ function restoreGameState(snapshot, now = 0) {
     nextGameTimerId = copy.nextGameTimerId;
     gameTimers.clear();
     for (const [id, timer] of timers) gameTimers.set(id, timer);
+    recordGameSpeedChange(getEffectiveGameSpeed());
 }

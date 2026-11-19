@@ -69,6 +69,9 @@ async function showRanking() {
         : 'Najlepszy wynik każdego lokalnego profilu. Wygrane i przegrane razem.';
     const content = document.createElement('div');
     content.className = 'ranking__content';
+    content.setAttribute('tabindex', '0');
+    content.setAttribute('role', 'region');
+    content.setAttribute('aria-label', 'Tabela rankingu. Na małych ekranach przewiń w poziomie.');
     content.textContent = 'Wczytywanie…';
     const close = createRankingButton('ZAMKNIJ', () => dialog.close());
     dialog.append(title, description, content, close);
@@ -85,7 +88,7 @@ async function showRanking() {
         }
         const table = document.createElement('table');
         const header = document.createElement('tr');
-        for (const text of ['Miejsce', 'Gracz', 'Score', 'Wynik gry', 'Data']) {
+        for (const text of ['Miejsce', 'Gracz', 'Punkty', 'Wynik gry', 'Data']) {
             const cell = document.createElement('th');
             cell.scope = 'col';
             cell.textContent = text;
@@ -100,10 +103,24 @@ async function showRanking() {
             if (result.totalScore !== previousScore) place = index + 1;
             previousScore = result.totalScore;
             const row = document.createElement('tr');
+            row.dataset.place = String(place);
             for (const value of [place, result.nickname, `${formatScore(result.totalScore)} pkt`,
                 result.status === 'won' ? 'Wygrana' : 'Przegrana', new Date(result.finishedAt).toLocaleString('pl-PL')]) {
                 const cell = document.createElement('td');
                 cell.textContent = value;
+                if (row.children.length === 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'ranking__place';
+                    badge.textContent = value;
+                    cell.textContent = '';
+                    cell.appendChild(badge);
+                } else if (row.children.length === 3) {
+                    const badge = document.createElement('span');
+                    badge.className = `ranking__status${result.status === 'won' ? ' ranking__status--won' : ''}`;
+                    badge.textContent = value;
+                    cell.textContent = '';
+                    cell.appendChild(badge);
+                }
                 row.appendChild(cell);
             }
             body.appendChild(row);

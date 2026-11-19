@@ -35,14 +35,15 @@ function validateSpeedStatistics(summary) {
     const history = summary.speedHistory;
     const isTime = value => Number.isFinite(value) && value >= 0;
     const near = (a, b) => Math.abs(a - b) <= 0.000001 * Math.max(1, Math.abs(a), Math.abs(b));
-    if (!GAME_CONFIG.gameSpeeds.includes(summary.initialGameSpeed) ||
-        !GAME_CONFIG.gameSpeeds.includes(summary.gameSpeed) || !isTime(summary.simulationTimeSeconds) ||
+    const speeds = [...GAME_CONFIG.gameSpeeds, ...GAME_CONFIG.gameSpeeds.map(speed => getEffectiveGameSpeed(speed))];
+    if (!speeds.includes(summary.initialGameSpeed) ||
+        !speeds.includes(summary.gameSpeed) || !isTime(summary.simulationTimeSeconds) ||
         !Array.isArray(history) || history.length === 0) throw new Error('Nieprawidłowa historia szybkości.');
     let previous = null;
     for (const entry of history) {
         if (!isRecord(entry) || Object.keys(entry).length !== 3 ||
             !['gameSpeed', 'atActiveSeconds', 'atSimulationSeconds'].every(key => Object.hasOwn(entry, key)) ||
-            !GAME_CONFIG.gameSpeeds.includes(entry.gameSpeed) || !isTime(entry.atActiveSeconds) ||
+            !speeds.includes(entry.gameSpeed) || !isTime(entry.atActiveSeconds) ||
             !isTime(entry.atSimulationSeconds) || entry.atActiveSeconds > summary.activeTimeSeconds) {
             throw new Error('Nieprawidłowa historia szybkości.');
         }

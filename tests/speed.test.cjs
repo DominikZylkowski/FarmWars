@@ -6,6 +6,32 @@ const { createGame } = require('./game-harness.cjs');
 const speeds = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3];
 const close = (a, b) => assert.ok(Math.abs(a - b) < 0.0001, `${a} != ${b}`);
 
+test('bazowe tempo 11/10 przyspiesza całą symulację i zachowuje pauzę, zmianę szybkości oraz zapis', () => {
+    const config = fs.readFileSync(path.join(__dirname, '../js/config.js'), 'utf8');
+    assert.match(config, /baseGameSpeed: 1\.1/);
+    const game = createGame({}, { baseGameSpeed: 1.1 });
+    game.start();
+    game.run(`gameState.tiles.forEach(tile => { tile.object = null; });
+        const planted = gameState.tiles[0];
+        gameState.seedCount = shopItems.seedling.seeds; placeItem(0, 'seedling');`);
+    game.advance(10000);
+    close(game.run('getGameTime()'), 11000);
+    close(game.summary().simulationTimeSeconds, 11);
+    close(game.run('gameState.prepTime'), 109);
+    assert.equal(game.run('gameState.tiles.filter(tile => tile.object?.type === "grass").length'), 3);
+    game.run('togglePause()'); game.advance(5000);
+    close(game.run('getGameTime()'), 11000);
+    game.run('togglePause(); setGameSpeed(2);'); game.advance(2000);
+    close(game.run('getGameTime()'), 15400);
+    assert.equal(game.run('planted.object.type'), 'tree');
+    assert.equal(game.summary().gameSpeed, 2.2);
+    game.run('const savedTempo = exportGameState(); restoreGameState(savedTempo, performance.now());');
+    game.advance(1000);
+    close(game.run('getGameTime()'), 17600);
+    game.run("finishScore('lost', currentRealTime)");
+    assert.doesNotThrow(() => game.run('validateScoreSummary(getScoreSummary())'));
+});
+
 test('dokładnie 10 wartości, domyślne 1× i odczyt preferencji', () => {
     const initial = createGame();
     assert.deepEqual(JSON.parse(initial.run('JSON.stringify(GAME_CONFIG.gameSpeeds)')), speeds);
@@ -33,7 +59,7 @@ test('wszystkie szybkości skalują ruch, zegar i punkty za czas', () => {
         `);
         game.advance(4000);
         close(game.run('getGameTime()'), 4000 * speed);
-        close(game.run('gameState.activeEnemies[0].offsetX'), 0.55 * 60 * 4 * speed);
+        close(game.run('gameState.activeEnemies[0].offsetX'), 0.6875 * 60 * 4 * speed);
         close(game.summary().simulationTimeSeconds, 4 * speed);
         close(game.summary().activeTimeSeconds, 4);
         assert.equal(game.summary().points.time, 4 * speed);
@@ -73,7 +99,7 @@ test('zmiana szybkości między klatkami zachowuje poprzedni odcinek ruchu', () 
     game.run('setGameSpeed(2);');
     game.advance(50, 20);
     close(game.run('getGameTime()'), 150);
-    close(game.run('gameState.activeEnemies[0].offsetX'), 0.55 * 60 * 0.15);
+    close(game.run('gameState.activeEnemies[0].offsetX'), 0.6875 * 60 * 0.15);
     close(game.summary().activeTimeSeconds, 0.1);
     close(game.summary().simulationTimeSeconds, 0.15);
 });
@@ -125,7 +151,7 @@ test('2× skaluje przygotowanie, wzrost, zasoby, spawn, ostrzał i pociski', () 
     resources.start();
     resources.run(`gameState.tiles.forEach(tile => { tile.object = null; });`);
     resources.advance(7520);
-    assert.equal(resources.run("gameState.tiles.filter(tile => tile.object?.type === 'grass').length"), 1);
+    assert.equal(resources.run("gameState.tiles.filter(tile => tile.object?.type === 'grass').length"), 3);
     resources.advance(5000);
     assert.equal(resources.run("gameState.tiles.filter(tile => tile.object?.type === 'stone').length"), 1);
 

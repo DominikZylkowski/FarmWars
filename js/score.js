@@ -13,9 +13,9 @@ function resetScore(runId = createLocalId('run')) {
         totalScore: 0,
         activeTimeMs: 0,
         simulationTimeMs: 0,
-        initialGameSpeed: gameState.gameSpeed,
-        gameSpeed: gameState.gameSpeed,
-        speedHistory: [{ atActiveSeconds: 0, atSimulationSeconds: 0, gameSpeed: gameState.gameSpeed }],
+        initialGameSpeed: getEffectiveGameSpeed(),
+        gameSpeed: getEffectiveGameSpeed(),
+        speedHistory: [{ atActiveSeconds: 0, atSimulationSeconds: 0, gameSpeed: getEffectiveGameSpeed() }],
         itemsCrafted: 0,
         enemiesDefeated: 0,
         resourcesCollected: 0,
@@ -39,7 +39,7 @@ function updateScoreTime(now = performance.now()) {
     if (scoreClockStartedAt === null) return;
     const elapsed = now - scoreClockStartedAt;
     scoreState.activeTimeMs = scoreActiveBaselineMs + elapsed;
-    scoreState.simulationTimeMs = scoreSimulationBaselineMs + elapsed * gameState.gameSpeed;
+    scoreState.simulationTimeMs = scoreSimulationBaselineMs + elapsed * getEffectiveGameSpeed();
     scoreState.points.time = Math.floor(scoreState.simulationTimeMs / 1000) * GAME_CONFIG.scoring.pointsPerSecond;
     updateScoreTotal();
 }

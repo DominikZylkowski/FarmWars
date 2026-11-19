@@ -12,6 +12,7 @@ for (const file of ['config.js', 'score.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../js', file), 'utf8'), context);
 }
 const run = code => vm.runInContext(code, context);
+run('GAME_CONFIG.baseGameSpeed = 1; resetScore();');
 const summary = () => JSON.parse(run('JSON.stringify(getScoreSummary())'));
 
 now = 5000;

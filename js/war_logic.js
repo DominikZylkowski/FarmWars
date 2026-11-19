@@ -62,18 +62,23 @@ function updateCannons(now = getGameTime()) {
 }
 
 function fireCannon(tile) {
+    const level = tile.object?.type === 'cannon' ? tile.object.level ?? 1 : 1;
+    const muzzle = cannonMuzzles[level - 1];
     gameState.activeProjectiles.push({
-        id: ++nextEntityId, column: tile.column, xOffset: 0, row: tile.row
+        id: ++nextEntityId, column: tile.column, xOffset: 0, row: tile.row,
+        originX: muzzle.x, originY: muzzle.y, diameter: muzzle.diameter,
+        damage: GAME_CONFIG.cannonDamagePerLevel[level - 1]
     });
 }
 
 function projectileHitsEnemy(projectile, enemy, tileWidth) {
     // Obrócony kwadrat pocisku dawał prostokąt AABB w getBoundingClientRect().
     const angle = projectile.xOffset * 2 * Math.PI / 180;
-    const halfProjectile = COLLISION_GEOMETRY.projectile / 2 * (Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)));
+    const diameter = projectile.diameter === undefined ? COLLISION_GEOMETRY.projectile : projectile.diameter * tileWidth;
+    const halfProjectile = diameter / 2 * (Math.abs(Math.cos(angle)) + Math.abs(Math.sin(angle)));
     const halfEnemy = COLLISION_GEOMETRY[enemy.type] / 2;
     const enemyX = (GAME_CONFIG.columns - 0.5) * tileWidth - enemy.offsetX;
-    const projectileX = (projectile.column + 0.5) * tileWidth + projectile.xOffset;
+    const projectileX = (projectile.column + (projectile.originX ?? 0.5)) * tileWidth + projectile.xOffset;
     return projectileX + halfProjectile >= enemyX - halfEnemy + COLLISION_GEOMETRY.hitInset &&
         projectileX - halfProjectile <= enemyX + halfEnemy;
 }
@@ -89,10 +94,10 @@ function updateProjectiles(delta = 1 / 60) {
             candidate.hp > 0 && projectileHitsEnemy(projectile, candidate, columnPitch)
         );
         if (enemy) {
-            damageEnemy(enemy, GAME_CONFIG.cannonDamage);
+            damageEnemy(enemy, projectile.damage ?? GAME_CONFIG.cannonDamage);
             if (!gameState.isInvasionActive || gameState.gameEnded) return;
         }
-        if (enemy || (projectile.column + 0.5) * columnPitch + projectile.xOffset > projectileLimit) {
+        if (enemy || (projectile.column + (projectile.originX ?? 0.5)) * columnPitch + projectile.xOffset > projectileLimit) {
             gameState.activeProjectiles.splice(i, 1);
         }
     }

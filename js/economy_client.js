@@ -313,6 +313,7 @@ const serverGame = (() => {
 
     return {
         setup, isOnline, restart,
+        get simulationMs() { return client.state?.simulationMs ?? 0; },
         pause: shouldPause => client.state?.paused === shouldPause ? undefined : command(shouldPause ? 'pause' : 'resume'),
         speed(speed) {
             updateGameSpeedUI();

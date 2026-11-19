@@ -143,7 +143,7 @@ function createGame(storedValues = {}, browser = {}) {
         document,
         window: {
             location: browser.location,
-            innerWidth: 2000,
+            innerWidth: browser.innerWidth ?? 2000,
             innerHeight: 900,
             addEventListener: (name, handler) => listeners.set(`window:${name}`, handler),
             localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) }
@@ -164,6 +164,8 @@ function createGame(storedValues = {}, browser = {}) {
     const run = code => vm.runInContext(code, context);
     for (const file of ['config.js', 'runtime.js', 'score.js', 'ranking.js', 'ranking_ui.js', 'game_model.js', 'war_logic.js', 'game_view.js', 'economy_client.js', 'main.js']) {
         run(fs.readFileSync(path.join(__dirname, '../js', file), 'utf8'));
+        // Mechanics tests use a neutral clock; tempo tests opt into the production multiplier.
+        if (file === 'config.js') run(`GAME_CONFIG.baseGameSpeed = ${browser.baseGameSpeed ?? 1}`);
     }
     listeners.get('DOMContentLoaded')();
     // Jednorazowa klatka pomiaru planszy, nie jest to pętla rozgrywki.

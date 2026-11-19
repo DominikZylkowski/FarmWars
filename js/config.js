@@ -2,6 +2,7 @@
 const GAME_CONFIG = {
     rulesetId: 'farmwars-1',
     freeLocalPurchases: false,
+    baseGameSpeed: 1.1,
     removalRefundRate: 0.25,
     preparationSeconds: 120,
     gameSpeeds: Object.freeze([0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]),
@@ -9,18 +10,22 @@ const GAME_CONFIG = {
     columns: 10,
     tileClassNames: ['game-tile--light', 'game-tile--dark'],
     baseGrassCount: 6,
+    grassPerSpawn: 3,
+    grassSizeThresholds: [0.75, 1],
     baseStoneCount: 11,
     firstWaveStoneLimit: 28,
     spawnIntervals: {
-        grass: 15000, 
+        grass: 10000,
         stone: 25000  
     },
     treeGrowthTime: 15000,
     treeProductionInterval: 15000,
     treeWoodPerLevel: [6, 8, 10, 12, 15],
     quarryProductionInterval: 15000,
-    quarryStonePerLevel: [6, 8, 10, 12, 15],
+    // Wczesne inwestycje w produkcję pozwalają domknąć pełny rozwój przed 10. falą.
+    quarryStonePerLevel: [6, 9, 14, 19, 23],
     producerUpgradeCosts: [25, 50, 75, 100],
+    treeUpgradeSeedCosts: [5, 10, 15, 20],
     hpValues: { 
         tree: 5, 
         cannon: 10, 
@@ -42,11 +47,13 @@ const GAME_CONFIG = {
         9: { normal: 45, boss: 15 },
         10: { normal: 50, boss: 20 }
     },
-    enemySpeed: 0.55,
-    bossSpeed: 0.45,
+    enemySpeed: 0.6875,
+    bossSpeed: 0.5625,
     bossMasterMultiplier: 2.5,
     projectileSpeed: 4, 
     cannonDamage: 3,
+    cannonDamagePerLevel: [3, 4, 5, 6, 8],
+    cannonUpgradeCosts: [50, 100, 150, 200],
     scoring: {
         pointsPerSecond: 1,
         items: { cannon: 10, seedling: 10, woodFence: 10, stoneWall: 10 },
@@ -83,6 +90,10 @@ function createGameState() {
 }
 
 const gameState = createGameState();
+
+function getEffectiveGameSpeed(speed = gameState.gameSpeed) {
+    return Number((speed * GAME_CONFIG.baseGameSpeed).toFixed(6));
+}
 
 function getStoredGameSpeed() {
     const stored = safeGetStoredValue('gameSpeed');
@@ -126,7 +137,7 @@ function safeSetStoredValue(key, value) {
 }
 
 const shopItems = {
-    cannon: { wood: 200, stone: 150 },
+    cannon: { wood: 100, stone: 200 },
     seedling: { seeds: 20 },
     woodFence: { wood: 100 },
     stoneWall: { stone: 120 },
@@ -147,9 +158,9 @@ GAME_CONFIG.hpColors = {
 };
 
 const itemImages = {
-    cannon: 'assets/images/cannon.png',
+    cannon: 'assets/images/cannon_lvl_1.png',
     seedling: 'assets/images/seedling.png',
-    tree: 'assets/images/Tree.png',
+    tree: 'assets/images/tree_lvl_1.png',
     woodFence: 'assets/images/woodFence.png',
     stoneWall: 'assets/images/stoneWall.png',
     quarry: 'assets/images/quarry_lvl_1.png',
@@ -158,6 +169,16 @@ const itemImages = {
 
 const bossMasterImage = 'assets/images/worm_boss_master.png';
 const quarryLevelImages = [1, 2, 3, 4, 5].map(level => `assets/images/quarry_lvl_${level}.png`);
+const treeLevelImages = [1, 2, 3, 4, 5].map(level => `assets/images/tree_lvl_${level}.png`);
+const cannonLevelImages = [1, 2, 3, 4, 5].map(level => `assets/images/cannon_lvl_${level}.png`);
+// Coordinates within the square tile, including each image's transparent margins.
+const cannonMuzzles = [
+    { x: 0.71, y: 0.407, diameter: 0.10 },
+    { x: 0.735, y: 0.395, diameter: 0.11 },
+    { x: 0.78, y: 0.384, diameter: 0.12 },
+    { x: 0.811, y: 0.369, diameter: 0.14 },
+    { x: 0.895, y: 0.337, diameter: 0.16 }
+];
 const wormSkinImages = [1, 2, 3, 4, 5, 6].map(version => `assets/images/worm_ver_${version}.png`);
 const bossSkinImages = [1, 2, 3, 4, 5].map(version => `assets/images/worm_boss_ver_${version}.png`);
 
@@ -170,6 +191,8 @@ function getEnemyImage(enemy) {
 }
 
 function getBuildingImage(type, level = 1) {
+    if (type === 'cannon') return cannonLevelImages[level - 1] ?? itemImages.cannon;
     if (type === 'quarry') return quarryLevelImages[level - 1] ?? itemImages.quarry;
+    if (type === 'tree') return treeLevelImages[level - 1] ?? itemImages.tree;
     return itemImages[type];
 }

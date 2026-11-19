@@ -2,6 +2,71 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createGame } = require('./game-harness.cjs');
 
+test('dotknięcie budynku wybiera dolny panel, a ulepszenie i zamknięcie działają bez najeżdżania myszą', () => {
+    const game = createGame({}, { innerWidth: 390 });
+    game.start();
+    game.run(`const mobileTree = gameState.tiles.find(tile => !tile.object);
+        mobileTree.object = createBoardObject('seedling'); growToTree(mobileTree, getGameTime());
+        gameState.woodCount = 25; gameState.seedCount = 5; renderGameState();
+        handleGridClick({ target: { closest: () => tileViews[mobileTree.id].element } });`);
+    const panel = game.document.getElementById('buildingUpgrade');
+    assert.equal(panel.hidden, false);
+    assert.equal(panel.style.left, '');
+    assert.equal(panel.style.top, '');
+    panel.onpointerleave({ pointerType: 'touch' });
+    assert.equal(panel.hidden, false);
+    game.document.getElementById('upgradeBuildingButton').onclick();
+    assert.equal(game.run('mobileTree.object.level'), 2);
+    assert.equal(game.run('gameState.woodCount + gameState.seedCount'), 0);
+    assert.equal(panel.hidden, false);
+    game.run('window.innerWidth = 1200; positionBuildingUpgrade();');
+    assert.notEqual(panel.style.top, '');
+    game.run('window.innerWidth = 844; window.matchMedia = () => ({ matches: true }); positionBuildingUpgrade();');
+    assert.equal(panel.style.top, '');
+    assert.equal(panel.style.left, '');
+    game.document.getElementById('closeBuildingUpgradeButton').onclick();
+    assert.equal(panel.hidden, true);
+});
+
+test('wejście do menu i samouczka nie uruchamia generowania zasobów', () => {
+    const game = createGame({}, { baseGameSpeed: 1.1 });
+    const initial = game.run('JSON.stringify(gameState.tiles)');
+    game.advance(30000);
+    assert.equal(game.run('JSON.stringify(gameState.tiles)'), initial);
+    assert.equal(game.run('getGameTime()'), 0);
+    game.run('handleStartButton()');
+    assert.equal(game.run('gameState.tutorialVisible'), true);
+    game.advance(30000);
+    assert.equal(game.run('JSON.stringify(gameState.tiles)'), initial);
+    assert.equal(game.run('getGameTime()'), 0);
+    game.run('finishTutorial()');
+    game.advance(10000);
+    assert.equal(game.run('Math.round(getGameTime())'), 11000);
+    assert.equal(game.run('gameState.tiles.filter(tile => tile.object?.type === \'grass\').length'), 9);
+});
+
+test('pasek sadzonki odlicza czas gry, zatrzymuje się w pauzie i znika po wzroście', () => {
+    const game = createGame();
+    game.start();
+    game.run(`const seedlingTile = gameState.tiles.find(tile => !tile.object);
+        gameState.seedCount = shopItems.seedling.seeds;
+        placeItem(seedlingTile.id, 'seedling');
+        renderGameState();`);
+    const label = () => game.run('tileViews[seedlingTile.id].growthBar.children[1].textContent');
+    assert.equal(label(), '15 s');
+    game.advance(5000);
+    assert.equal(label(), '10 s');
+    const width = game.run('tileViews[seedlingTile.id].growthBar.firstChild.style.width');
+    assert.ok(parseFloat(width) > 66 && parseFloat(width) < 67);
+    game.run('togglePause()');
+    game.advance(5000);
+    assert.equal(label(), '10 s');
+    game.run('togglePause()');
+    game.advance(10100);
+    assert.equal(game.run('seedlingTile.object.type'), 'tree');
+    assert.equal(game.run('tileViews[seedlingTile.id].growthBar'), null);
+});
+
 test('ESC przed startem, ukończony samouczek i domyślna szybkość niezależna od dawnej głośności', () => {
     const game = createGame({ gameVolume: '0', farmwarsTutorialCompletedV2: '1' });
     game.run('togglePause();');
@@ -95,8 +160,8 @@ test('tryb usuwania zwraca ćwierć faktycznej ceny i nie zbiera złóż', () =>
     assert.equal(button.getAttribute('aria-pressed'), 'true');
     game.run('handleGridClick({ target: { closest: () => tileViews[plot.id].element } });');
     assert.equal(game.run('plot.object'), null);
-    assert.equal(game.run('gameState.woodCount'), 50);
-    assert.equal(game.run('gameState.stoneCount'), 37);
+    assert.equal(game.run('gameState.woodCount'), 25);
+    assert.equal(game.run('gameState.stoneCount'), 50);
     assert.equal(button.getAttribute('aria-pressed'), 'false');
 });
 
@@ -385,7 +450,7 @@ test('geometria logiczna: kontakt zależy od szerokości pola, a strzał od rozm
     game.run(`
         enemy.offsetX = 0; enemy.currentCol = 9;
         fireCannon(gameState.tiles[8]);
-        updateProjectiles(28 / 240);
+        updateProjectiles(32 / 240);
     `);
     assert.equal(game.run('enemy.hp'), 10);
     game.run('updateProjectiles(2 / 240);');

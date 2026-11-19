@@ -4,14 +4,17 @@
 
 FarmWars is a Polish-language browser game built with plain HTML, JavaScript, and SCSS. `index.html` contains the interface and loads the game scripts. `js/config.js` defines shared configuration, state, shop prices, and asset mappings; `js/main.js` handles the board, interface, and game flow; `js/war_logic.js` handles invasions and combat. Keep script loading order intact because these files share globals.
 
-Edit styles in `styles/scss/main.scss` and shared design values in `styles/scss/_variables.scss`. Sass generates browser-ready files in `styles/css/`. Images belong in `assets/images/` and favicons in `assets/favicon/`. There is currently no dedicated test directory.
+Edit styles in `styles/scss/main.scss` and shared design values in `styles/scss/_variables.scss`. Sass generates browser-ready files in `styles/css/`. Images belong in `assets/images/` and favicons in `assets/favicon/`. Automated tests and simulation helpers are in `tests/`.
 
 ## Build, Test, and Development Commands
 
 - `npm ci`: install the development dependencies from `package-lock.json`.
 - `npm run sass-compile`: compile SCSS into `styles/css/` before opening the game.
 - `npm run watch`: recompile styles automatically while editing SCSS.
-- Open `index.html` in a browser after compilation to play and check changes. There is no application server or JavaScript bundling step.
+- `npm test`: run the default Node.js regression suite.
+- `npm run test:balance`: run full-game economy simulations.
+- `npm run build`: prepare the local-only static game in `dist/`.
+- Open `index.html` in a browser after compilation to play and check changes. Optional PHP modes require Apache/XAMPP and a database; there is no JavaScript bundling step.
 
 ## Coding Style & Naming Conventions
 
@@ -21,7 +24,7 @@ Preserve existing DOM IDs and CSS class conventions, including element and modif
 
 ## Testing Guidelines
 
-No automated test framework, test script, or coverage threshold is configured. Compile styles and manually verify affected gameplay: starting and resuming, Escape pause, resource collection, shop placement, invasion combat, level progression, and viewport resizing. Check the browser console for errors. For persistence changes, verify tutorial and volume settings after reloading.
+Tests use Node.js's built-in test runner; no coverage threshold is configured. Run relevant tests, compile changed styles, and manually verify affected gameplay: starting and resuming, Escape pause, resource collection, shop placement, invasion combat, level progression, and viewport resizing. Check the browser console for errors. For persistence changes, verify tutorial and game-speed settings after reloading. PHP validation and engine tests can run separately; database integration tests require an explicitly configured test instance.
 
 ## Commit & Pull Request Guidelines
 

@@ -28,10 +28,14 @@ function captureBoardGeometry() {
     const entry = tileViews[0]?.element;
     if (!entry?.offsetWidth) return;
     const root = document.getElementById('appScale') || document.body;
-    const tileWidth = entry.offsetWidth;
     const rect = entry.getBoundingClientRect();
     const left = rect.left - root.getBoundingClientRect().left;
-    gameState.geometry = { tileWidth, columnPitch: rect.width || tileWidth, projectileLimit: Math.max(0, window.innerWidth - left) };
+    // One field is always 100 logical pixels, regardless of the starting viewport.
+    const tileWidth = 100;
+    gameState.geometry = {
+        tileWidth, columnPitch: tileWidth,
+        projectileLimit: Math.max(0, window.innerWidth - left) * tileWidth / (rect.width || entry.offsetWidth)
+    };
 }
 
 function renderBoard() {
@@ -45,7 +49,7 @@ function renderBoard() {
         element.className = `game-tile ${GAME_CONFIG.tileClassNames[(tile.row + tile.column) % 2]}`;
         tileIds.set(element, tile.id);
         grid.appendChild(element);
-        tileViews.push({ element, object: null, healthBar: null, levelBadge: null, id: null, type: null, lastShot: null });
+        tileViews.push({ element, object: null, healthBar: null, growthBar: null, levelBadge: null, id: null, type: null, lastShot: null });
     }
 }
 
@@ -60,6 +64,8 @@ function renderTile(tile) {
         view.levelBadge = null;
         view.healthBar?.remove();
         view.healthBar = null;
+        view.growthBar?.remove();
+        view.growthBar = null;
         view.id = id;
         view.type = type;
         view.lastShot = object?.lastShot;
@@ -71,7 +77,7 @@ function renderTile(tile) {
                 element.className = `game-tile__placed-item game-tile__item--${type}`;
                 element.style.backgroundImage = `url('${getBuildingImage(type, object.level)}')`;
                 if (type === 'cannon') element.addEventListener('animationend', () => element.classList.remove('is-shooting'));
-                if (!serverGame && (type === 'tree' || type === 'quarry')) {
+                if (!serverGame && (type === 'tree' || type === 'quarry' || type === 'cannon')) {
                     const badge = document.createElement('span');
                     badge.className = 'game-tile__level';
                     element.appendChild(badge);
@@ -82,11 +88,36 @@ function renderTile(tile) {
             view.object = element;
         }
     }
+    if (type === 'tree') {
+        view.object.classList.toggle('game-tile__item--tree-level-1', (object.level ?? 1) === 1);
+    }
+    if (type === 'seedling') {
+        if (!view.growthBar) {
+            const bar = document.createElement('div');
+            bar.className = 'game-tile__growth';
+            bar.setAttribute('role', 'progressbar');
+            bar.setAttribute('aria-label', 'Czas do wyrośnięcia drzewa');
+            bar.setAttribute('aria-valuemin', '0');
+            bar.setAttribute('aria-valuemax', '100');
+            bar.appendChild(document.createElement('div'));
+            bar.appendChild(document.createElement('span'));
+            view.element.appendChild(bar);
+            view.growthBar = bar;
+        }
+        const now = serverGame ? serverGame.simulationMs : getGameTime();
+        const remaining = Math.max(0, object.growthAt - now);
+        const percent = Math.min(100, remaining / GAME_CONFIG.treeGrowthTime * 100);
+        const seconds = `${Math.ceil(remaining / 1000)} s`;
+        view.growthBar.firstChild.style.width = `${percent}%`;
+        view.growthBar.setAttribute('aria-valuenow', String(Math.round(percent)));
+        view.growthBar.setAttribute('aria-valuetext', `Do wyrośnięcia: ${seconds}`);
+        if (view.growthBar.children[1].textContent !== seconds) view.growthBar.children[1].textContent = seconds;
+    }
     if (view.levelBadge) {
         const label = `Poz. ${object.level ?? 1}`;
         if (view.levelBadge.textContent !== label) {
             view.levelBadge.textContent = label;
-            if (type === 'quarry') view.object.style.backgroundImage = `url('${getBuildingImage(type, object.level)}')`;
+            view.object.style.backgroundImage = `url('${getBuildingImage(type, object.level)}')`;
         }
     }
     const hp = String(object?.hp ?? 0);
@@ -178,9 +209,12 @@ function createProjectileView() {
 function renderGameState() {
     if (tileViews.length !== gameState.tiles.length || !tileViews.length) return;
     for (const tile of gameState.tiles) renderTile(tile);
-    const tileWidth = tileViews[0].element.offsetWidth;
+    const tileWidth = tileViews[0].element.getBoundingClientRect().width;
     const scale = tileWidth / gameState.geometry.tileWidth;
     syncEntities(enemyViews, gameState.activeEnemies, createEnemyView, (element, enemy) => {
+        const size = `${COLLISION_GEOMETRY[enemy.type] * scale}px`;
+        element.style.width = size;
+        element.style.height = size;
         element.style.transform = `translate(-50%, -50%) translateX(-${enemy.offsetX * scale}px)`;
         const hp = element.firstChild;
         const laneHeight = `${tileWidth}px`;
@@ -200,8 +234,17 @@ function renderGameState() {
             const index = projectile.row * GAME_CONFIG.columns + projectile.column;
             if (!origins.has(index)) origins.set(index, tileViews[index].element.getBoundingClientRect());
             const rect = origins.get(index);
-            element.style.left = `${rect.left - root.left + rect.width / 2 + projectile.xOffset * scale}px`;
-            element.style.top = `${rect.top - root.top + rect.height / 2}px`;
+            const visualScale = parseFloat(getComputedStyle(tileViews[index].element).getPropertyValue?.('--cannon-visual-scale')) || 1;
+            const originX = 0.5 + ((projectile.originX ?? 0.5) - 0.5) * visualScale;
+            const originY = 0.5 + ((projectile.originY ?? 0.5) - 0.5) * visualScale;
+            element.style.left = `${rect.left - root.left + rect.width * originX + projectile.xOffset * scale}px`;
+            element.style.top = `${rect.top - root.top + rect.height * originY}px`;
+            if (projectile.diameter !== undefined) {
+                // The solid ball occupies about 34% of cannonball.png's canvas.
+                const size = `${rect.width * projectile.diameter * visualScale / 0.34}px`;
+                element.style.width = size;
+                element.style.height = size;
+            }
             element.style.transform = `translate(-50%, -50%) rotate(${projectile.xOffset * 2}deg)`;
         });
     }

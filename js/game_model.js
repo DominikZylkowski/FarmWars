@@ -63,7 +63,10 @@ function placeItem(tileId, item) {
         placementCost: { ...placementCost }
     });
     if (item === 'seedling') tile.object.growthAt = Math.floor(now) + GAME_CONFIG.treeGrowthTime;
-    if (item === 'cannon') tile.object.lastShot = now - 1000;
+    if (item === 'cannon') {
+        tile.object.level = 1;
+        tile.object.lastShot = now - 1000;
+    }
     if (item === 'quarry') {
         tile.object.level = 1;
         tile.object.nextStoneAt = now + GAME_CONFIG.quarryProductionInterval;
@@ -120,7 +123,8 @@ function spawnRandomResource(type) {
     if (!freeTiles.length) return;
     const tile = freeTiles[Math.floor(gameRandom() * freeTiles.length)];
     const roll = gameRandom();
-    let size = roll < 0.5 ? 1 : roll < 0.8 ? 2 : 3;
+    const thresholds = type === 'grass' ? GAME_CONFIG.grassSizeThresholds : [0.5, 0.8];
+    let size = roll < thresholds[0] ? 1 : roll < thresholds[1] ? 2 : 3;
     if (type === 'stone' && gameState.level === 1 && !gameState.isInvasionActive) {
         const bonus = Math.min(size - 1, gameState.firstWaveStoneBonus ?? 0);
         gameState.firstWaveStoneBonus = (gameState.firstWaveStoneBonus ?? 0) - bonus;
@@ -160,6 +164,16 @@ function initializeGameModel(seed, epochMs, preferences = {}) {
 }
 
 function getProducerUpgrade(object) {
+    if (object?.type === 'cannon') {
+        const level = object.level ?? 1;
+        const cost = GAME_CONFIG.cannonUpgradeCosts[level - 1];
+        return {
+            level, resource: 'stone',
+            damage: GAME_CONFIG.cannonDamagePerLevel[level - 1],
+            nextDamage: GAME_CONFIG.cannonDamagePerLevel[level],
+            cost: cost !== undefined && GAME_CONFIG.freeLocalPurchases ? 0 : cost
+        };
+    }
     if (!object || (object.type !== 'tree' && object.type !== 'quarry')) return null;
     const tree = object.type === 'tree';
     const level = object.level ?? 1;
@@ -171,6 +185,7 @@ function getProducerUpgrade(object) {
         production: production[level - 1],
         nextProduction: production[level],
         interval: tree ? GAME_CONFIG.treeProductionInterval : GAME_CONFIG.quarryProductionInterval,
+        seedCost: tree && !GAME_CONFIG.freeLocalPurchases ? GAME_CONFIG.treeUpgradeSeedCosts[level - 1] ?? 0 : 0,
         cost: cost !== undefined && GAME_CONFIG.freeLocalPurchases ? 0 : cost
     };
 }
@@ -181,8 +196,10 @@ function upgradeBuilding(tileId, objectId) {
     const upgrade = getProducerUpgrade(object);
     if (upgrade?.cost === undefined) return false;
     const balance = RESOURCE_BALANCES[upgrade.resource];
-    if (gameState[balance] < upgrade.cost) return false;
+    const seedCost = upgrade.seedCost ?? 0;
+    if (gameState[balance] < upgrade.cost || gameState.seedCount < seedCost) return false;
     gameState[balance] -= upgrade.cost;
+    gameState.seedCount -= seedCost;
     object.level = upgrade.level + 1;
     return true;
 }

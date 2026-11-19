@@ -71,6 +71,7 @@ const run = code => vm.runInContext(code, context);
             this.value = '';
             this.events = {};
             this.style = {};
+            this.dataset = {};
         }
         set innerHTML(value) { throw new Error('Interfejs nie powinien wstawiać HTML'); }
         setAttribute() {}
@@ -109,7 +110,7 @@ const run = code => vm.runInContext(code, context);
     const dialog = find(body, 'rankingDialog');
     const table = dialog.children[2].children[0];
     assert.equal(table.children[1].children[0].children[1].textContent, '<img src=x>');
-    assert.equal(table.children[1].children[0].children[3].textContent, 'Przegrana');
+    assert.equal(table.children[1].children[0].children[3].children[0].textContent, 'Przegrana');
     dialog.close();
     assert.equal(find(body, 'rankingDialog'), undefined);
     const remainingNodes = body.children.length;

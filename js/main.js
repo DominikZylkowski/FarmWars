@@ -218,9 +218,9 @@ const RESOURCE_LABELS = {
 };
 
 const RESOURCE_ICONS = {
-    wood: 'assets/images/Tree.png',
+    wood: 'assets/images/log.png',
     stone: 'assets/images/stone.png',
-    seeds: 'assets/images/grass.png'
+    seeds: 'assets/images/seeds.png'
 };
 
 function renderShopCosts() {
@@ -278,14 +278,14 @@ const TUTORIAL_STEPS = [
         text: 'Posadź sadzonkę i poczekaj, aż wyrośnie. Kliknij dojrzałe drzewo, żeby zebrać drewno.'
     }] : [{
         title: 'Posadź drzewo',
-        text: `${GAME_CONFIG.freeLocalPurchases ? 'Sadzonka jest darmowa.' : `Sadzonka kosztuje ${shopItems.seedling.seeds} nasion.`} Wyrasta po ${GAME_CONFIG.treeGrowthTime / 1000} sekundach czasu gry. Dojrzałe drzewo samo dodaje ${GAME_CONFIG.treeWoodPerLevel[0]} drewna co ${GAME_CONFIG.treeProductionInterval / 1000} sekund.`
+        text: `${GAME_CONFIG.freeLocalPurchases ? 'Sadzonka jest darmowa.' : `Sadzonka kosztuje ${shopItems.seedling.seeds} nasion.`} Wyrasta po ${GAME_CONFIG.treeGrowthTime / 1000} sekundach czasu gry. Dojrzałe drzewo samo dodaje ${GAME_CONFIG.treeWoodPerLevel[0]} drewna co ${GAME_CONFIG.treeProductionInterval / 1000} sekund. Kliknij drzewo, aby je ulepszyć. Ulepszenia wymagają drewna i nasion.`
     }, {
         title: 'Postaw kamieniołom',
         text: `${GAME_CONFIG.freeLocalPurchases ? 'Kamieniołom jest darmowy.' : `Kamieniołom kosztuje ${shopItems.quarry.stone} kamienia i ${shopItems.quarry.wood} drewna.`} Na poziomie 1 daje ${GAME_CONFIG.quarryStonePerLevel[0]} kamienia co ${GAME_CONFIG.quarryProductionInterval / 1000} sekund. Kliknij kamieniołom lub dojrzałe drzewo, aby je ulepszyć.`
     }]),
     {
         title: 'Armaty strzelają same',
-        text: 'Armata strzela do robaków w swoim rzędzie. Płoty i murki je zatrzymują, a po pierwszym trafieniu potwora zobaczysz pasek życia zaatakowanego obiektu.'
+        text: `Armata strzela do robaków w swoim rzędzie.${serverGame ? '' : ' Kliknij armatę, aby ulepszyć ją za kamień do poziomu 5.'} Płoty i murki zatrzymują robaki, a po pierwszym trafieniu potwora zobaczysz pasek życia zaatakowanego obiektu.`
     },
     {
         title: 'Wstrzymaj grę',
@@ -418,7 +418,7 @@ function updateGameSpeedUI() {
         band.classList[band.dataset.speedLevel === difficulty ? 'add' : 'remove']('is-active');
     });
     const app = document.getElementById('appScale');
-    app?.style.setProperty('--game-speed', String(gameState.gameSpeed));
+    app?.style.setProperty('--game-speed', String(serverGame ? gameState.gameSpeed : getEffectiveGameSpeed()));
     updateTimerUI();
 }
 
@@ -427,6 +427,14 @@ function positionBuildingUpgrade() {
     const panel = document.getElementById('buildingUpgrade');
     const tile = tileViews[selectedBuilding.tileId]?.element;
     if (!panel || panel.hidden || !tile) return;
+
+    const bottomPanel = window.matchMedia?.('(max-width: 768px), (hover: none) and (pointer: coarse)').matches ??
+        window.innerWidth <= 768;
+    if (bottomPanel) {
+        panel.style.left = '';
+        panel.style.top = '';
+        return;
+    }
 
     const anchor = tile.getBoundingClientRect();
     const { width, height } = panel.getBoundingClientRect();
@@ -464,14 +472,14 @@ function updateBuildingUpgrade() {
         return;
     }
     const unit = info.resource === 'wood' ? 'drewna' : 'kamienia';
-    const names = { tree: 'Drzewo', quarry: 'Kamieniołom', woodFence: 'Płot', stoneWall: 'Murek' };
+    const names = { tree: 'Drzewo', quarry: 'Kamieniołom', cannon: 'Armata', woodFence: 'Płot', stoneWall: 'Murek' };
     const name = names[object.type];
     const button = document.getElementById('upgradeBuildingButton');
     const title = document.getElementById('buildingUpgradeTitle');
     const level = document.getElementById('buildingUpgradeLevel');
     const icon = document.getElementById('buildingUpgradeIcon');
     const production = document.getElementById('buildingUpgradeProduction');
-    const costText = info.cost === 0 ? 'za darmo' : `${info.cost} ${unit}`;
+    const costText = info.cost === 0 ? 'za darmo' : `${info.cost} ${unit}${info.seedCost ? ` + ${info.seedCost} nasion` : ''}`;
     const fullHealth = repair && object.hp >= repair.maxHp;
     const levelText = repair ? '' : `Poziom ${info.level}/${GAME_CONFIG.producerUpgradeCosts.length + 1}`;
     let productionText;
@@ -480,6 +488,10 @@ function updateBuildingUpgrade() {
         const health = fullHealth ? object.hp : `${object.hp} → ${repair.repairedHp}`;
         productionText = `Życie: ${health} / ${repair.maxHp}`;
         buttonText = fullHealth ? 'Pełne życie' : `Napraw · ${costText}`;
+    } else if (object.type === 'cannon') {
+        const damage = info.nextDamage === undefined ? info.damage : `${info.damage} → ${info.nextDamage}`;
+        productionText = `Obrażenia: ${damage} · strzał co 1 s`;
+        buttonText = info.cost === undefined ? 'Maksymalny poziom' : `Ulepsz na poziom ${info.level + 1} · ${costText}`;
     } else {
         const amount = info.nextProduction === undefined ? info.production : `${info.production} → ${info.nextProduction}`;
         productionText = `Produkcja: ${amount} ${unit} co ${info.interval / 1000} s`;
@@ -493,7 +505,8 @@ function updateBuildingUpgrade() {
     level.hidden = Boolean(repair);
     if (production.textContent !== productionText) production.textContent = productionText;
     if (button.textContent !== buttonText) button.textContent = buttonText;
-    button.disabled = Boolean(fullHealth) || info.cost === undefined || gameState[RESOURCE_BALANCES[info.resource]] < info.cost;
+    button.disabled = Boolean(fullHealth) || info.cost === undefined ||
+        gameState[RESOURCE_BALANCES[info.resource]] < info.cost || gameState.seedCount < (info.seedCost ?? 0);
     panel.hidden = false;
     if (reposition) positionBuildingUpgrade();
 }

@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node build-static.cjs && sass --no-source-map styles/scss/main.scss dist/styles/css/main.css",
     "test": "node --test tests/score.test.cjs tests/ranking.test.cjs tests/runtime.test.cjs tests/security.test.cjs tests/schema.test.cjs tests/speed.test.cjs tests/ranking-http.test.cjs tests/game-engine.test.cjs tests/economy-client.test.cjs",
+    "test:balance": "node --test tests/balance.test.cjs",
     "sass-compile": "sass styles/scss:styles/css",
     "watch": "sass --watch styles/scss:styles/css"
   }

@@ -7,13 +7,29 @@ const vm = require('node:vm');
 
 const php = process.env.FARMWARS_PHP || 'C:/xampp/php/php.exe';
 
-test('PHP i JS: zgodność losowania, pierwszej fali, ruchu, armaty i punktacji', () => {
+test('PHP i JS: zgodność silników przy jednakowych historycznych regułach serwera', () => {
     const context = vm.createContext({});
     const run = code => vm.runInContext(code, context);
     for (const file of ['config.js', 'runtime.js', 'score.js', 'game_model.js', 'war_logic.js']) {
         run(fs.readFileSync(path.join(__dirname, '../js', file), 'utf8'));
     }
-    run('GAME_CONFIG.baseStoneCount = 4; GAME_CONFIG.firstWaveStoneLimit = 100;');
+    // Local balance has evolved independently. Compare engines using the same
+    // versioned server rules, rather than silently comparing different games.
+    const economySql = fs.readFileSync(path.join(__dirname, '../database/003-economy.sql'), 'utf8');
+    const economy = JSON.parse(economySql.match(/\n    '(\{[\s\S]*?\})'\n\)/)[1]);
+    const combatSql = fs.readFileSync(path.join(__dirname, '../database/004-online.sql'), 'utf8');
+    const combat = JSON.parse(combatSql.match(/'\{([\s\S]*?)\}'/)[0].slice(1, -1)).combat;
+    run(`GAME_CONFIG.baseGameSpeed = 1;
+        GAME_CONFIG.baseGrassCount = ${economy.initialGrass};
+        GAME_CONFIG.baseStoneCount = ${economy.initialStone};
+        GAME_CONFIG.firstWaveStoneLimit = 100;
+        GAME_CONFIG.grassPerSpawn = 1;
+        GAME_CONFIG.grassSizeThresholds = [0.5, 0.8];
+        GAME_CONFIG.spawnIntervals.grass = ${economy.grassInterval};
+        GAME_CONFIG.spawnIntervals.stone = ${economy.stoneInterval};
+        GAME_CONFIG.enemySpeed = ${combat.normal.speed};
+        GAME_CONFIG.bossSpeed = ${combat.boss.speed};
+        cannonMuzzles[0] = { x: 0.5, y: 0.5, diameter: ${combat.projectileSize / combat.tileWidth} };`);
     const initial = `initializeGameModel(123456, 0); gameState.gameStarted = true;
         startScore('parity'); setSimulationPaused(false, 0);`;
     run(initial);

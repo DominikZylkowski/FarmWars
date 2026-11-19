@@ -4,7 +4,7 @@ Pixelowa gra tower defense w HTML, JavaScript i SCSS. Gracz zbiera surowce, upra
 
 Jak grać
 Plansza składa się z siatki kafelków (domyślnie 5x10).
-Klikaj trawę, kamień i dojrzałe drzewa, aby zbierać nasiona, kamień i drewno. Przeciągaj dostępne przedmioty ze sklepu na wolne pola. Armaty strzelają automatycznie; robaki można również atakować kliknięciem.
+Klikaj trawę i kamień, aby zbierać nasiona i kamień. W grze lokalnej dojrzałe drzewa i kamieniołomy produkują surowce automatycznie. Kliknięcie drzewa, kamieniołomu lub armaty otwiera panel ulepszenia do poziomu 5. Drzewa wymagają drewna i nasion, kamieniołomy oraz armaty — kamienia. Przeciągaj dostępne przedmioty ze sklepu na wolne pola. Armaty strzelają automatycznie; robaki można również atakować kliknięciem.
 Po odparciu fali rozpoczyna się przygotowanie do kolejnej. Dotarcie robaka do domu kończy grę porażką; odparcie dziesiątej fali daje zwycięstwo.
 Menu i ESC pauzują rozpoczętą grę. Ukrycie karty także włącza pauzę; po powrocie gracz sam wznawia rozgrywkę. Ukończony samouczek jest pomijany przy kolejnym starcie.
 
@@ -16,25 +16,37 @@ Uruchamianie i testy
 
 `js/runtime.js` zarządza jedną pętlą animacji, zegarem aktywnej gry oraz timerami. Kolejność skryptów w HTML musi zostać zachowana.
 
+`npm run test:balance` sprawdza rozwój od pierwszych surowców do przygotowań przed 10. falą, dla wczesnych i opóźnionych inwestycji. To symulacja strategii: zakłada regularne zbieranie wszystkich złóż, do 4 kliknięć przeciwników i jedną akcję budowy lub ulepszenia na sekundę. `npm run build` przygotowuje lokalną wersję do publikacji w `dist/`, z wyłączonym połączeniem z backendem.
+
+`node tests/create-responsive-preview.cjs` tworzy pomijany przez Git plik `tests/responsive-preview.html`. Po otwarciu w przeglądarce przycisk „Wszystkie scenariusze” sprawdza układ planszy, walki, menu, samouczka, ulepszeń, rankingu i ekranu końcowego w 10 viewportach od 320×568 do 2560×1440. Podgląd używa osobnej pamięci testowej. Wyniki obejmują przepełnienia i błędy JavaScript; nie zastępują sprawdzenia fizycznego dotyku na urządzeniu.
+
+Aktualny balans lokalny
+
+Na starcie pojawia się 6 kępek trawy i 11 złóż kamienia. Podczas przygotowań co 10 sekund pojawiają się 3 kępki trawy dające po 1–2 nasiona; kamień pojawia się co 25 sekund. Limit kamienia w pierwszych przygotowaniach wynosi 28. Sadzonka kosztuje 20 nasion. Ulepszenia drzewa wymagają kolejno 25/50/75/100 drewna oraz 5/10/15/20 nasion. Drzewa produkują 6/8/10/12/15 drewna, a kamieniołomy 6/9/14/19/23 kamienia co 15 sekund. Armata kosztuje 100 drewna i 200 kamienia; kolejne ulepszenia kosztują 50/100/150/200 kamienia i zwiększają obrażenia do 4/5/6/8. Źródłem tych wartości jest `js/config.js`.
+
+Tryby `?mode=economy` i `?mode=online` korzystają z osobnych, wersjonowanych reguł PHP/SQL. Mają starszą ekonomię, ręczny zbiór drewna i nie obsługują lokalnych ulepszeń. Nie należy przenosić zmian lokalnego balansu do istniejących reguł SQL bez nowej wersji reguł i testów backendu.
+
+`node --test tests/online-parity.test.cjs` porównuje silniki JS i PHP przy jawnie jednakowych historycznych regułach serwera. Wymaga PHP (domyślnie `C:/xampp/php/php.exe`, inną ścieżkę wskazuje `FARMWARS_PHP`). Nie oznacza identyczności bieżącego balansu lokalnego i serwerowego.
+
 Szybkość rozgrywki
 
 Istniejący suwak menu wybiera dokładnie: 0,75×, 1,00×, 1,25×, 1,50×, 1,75×, 2,00×, 2,25×, 2,50×, 2,75× i 3,00×. Domyślnie jest 1,00×; poprawna preferencja jest odczytywana z localStorage (`gameSpeed`). Dawne ustawienie `gameVolume` nie steruje tym suwakiem i nie jest usuwane z pamięci.
 
 Przedziały: Easy 0,75×, Normal 1,00×–1,50×, Hard 1,75×–2,25×, Very Hard 2,50×–3,00×. Wartość i przedział odświeżają się w menu, a mnożnik jest widoczny także obok czasu/fali w topbarze. Natywny `input[type=range]` zachowuje mysz, dotyk i klawiaturę; jego dotychczasowe ID `volumeRange` pozostaje dla zgodności DOM.
 
-Jedynym mnożnikiem sterującym mechanikami jest `gameState.gameSpeed`, zmieniany przez `setGameSpeed()`. Zegar symulacji `getGameTime()` rozlicza każdy odcinek według obowiązującej w nim szybkości; delta ruchu pochodzi z tego samego zegara. Skalowane są ruch, pociski, ostrzał, generowanie przeciwników i zasobów, przygotowanie oraz wzrost. Animacja strzału i opcjonalna animacja obrotu korzystają z tej samej wartości przez CSS `--game-speed`; pauza zatrzymuje je. Ozdobne pulsowanie topbara pozostaje niezależne od mechanik.
+W grze lokalnej rzeczywisty mnożnik wynosi `GAME_CONFIG.baseGameSpeed * gameState.gameSpeed`, obliczany przez `getEffectiveGameSpeed()`. Bazowe tempo wynosi 1,1, więc przy suwaku 1× w ciągu 10 rzeczywistych sekund mija 11 sekund gry. `setGameSpeed()` zmienia preferencję suwaka. Zegar `getGameTime()` rozlicza każdy odcinek według obowiązującego mnożnika; ruch, pociski, ostrzał, generowanie zasobów, przygotowanie, wzrost i produkcja korzystają z tego samego czasu. Animacje korzystają z efektywnej szybkości przez CSS `--game-speed`; pauza zatrzymuje je. Tryb serwerowy ma własny zegar i nie stosuje lokalnego mnożnika bazowego.
 
-Score mierzy osobno rzeczywisty aktywny czas, bez mnożnika: 60 sekund przy 3× daje 60 punktów za czas, choć symulacja upływa o 180 sekund. Pauza zatrzymuje oba zegary, a zmiana mnożnika nie przelicza wstecz wcześniejszych odcinków. Ceny, HP, obrażenia i stawki punktowe nie zmieniły się.
+Score mierzy osobno rzeczywisty aktywny czas i czas symulacji. W schemacie 3 punkty za czas wynikają z pełnych sekund symulacji: 60 rzeczywistych sekund przy suwaku 3× i bazowym tempie 1,1 daje 198 sekund symulacji i 198 punktów za czas. Pauza zatrzymuje oba zegary, a zmiana mnożnika nie przelicza wstecz wcześniejszych odcinków.
 
 System punktacji
 
-Wartości punktowe określa `GAME_CONFIG.scoring` w `js/config.js`: 1 punkt za pełną sekundę aktywnej gry, 10 za postawiony przedmiot, 20 za zwykłego robaka i 35 za bossa. Sadzonka jest liczona po posadzeniu; jej wzrost w drzewo nie jest kolejnym wytworzeniem. Menu, samouczek i pauza nie naliczają czasu. Niepełne sekundy są zachowywane między pauzami. Wynik zostaje zamrożony po wygranej lub przegranej, a nowa gra go resetuje.
+Wartości punktowe określa `GAME_CONFIG.scoring` w `js/config.js`: 1 punkt za pełną sekundę symulacji, 10 za postawiony przedmiot, 20 za zwykłego robaka i 35 za bossa. Sadzonka jest liczona po posadzeniu; jej wzrost w drzewo nie jest kolejnym wytworzeniem. Menu, samouczek i pauza nie naliczają czasu. Niepełne sekundy są zachowywane między pauzami. Wynik zostaje zamrożony po wygranej lub przegranej, a nowa gra go resetuje.
 
 `js/score.js` zawiera logikę niezależną od DOM. `getScoreSummary()` zwraca kopię danych gotową do `JSON.stringify()`: wersję schematu, `rulesetId`, identyfikator partii, łączny wynik, aktywny czas w sekundach (z częścią ułamkową), liczniki i punkty kategorii oraz status `not_started`, `active`, `won` lub `lost`. Pauza zachowuje status `active`. Aktualizacja interfejsu znajduje się osobno w `updateScoreUI()` w `js/main.js`. Tryb lokalny i tryb online korzystają z osobnych historii.
 
 Testy punktacji i jej integracji z grą: `node tests/score.test.cjs`.
 
-Zebranie dojrzałego drzewa daje dodatkowo 12 punktów, zgodnie z `GAME_CONFIG.scoring.resources.tree`. Eksport obejmuje też `resourcesCollected`, `resourcesByType` i kategorię punktów `resources`. Każde drzewo jest zaliczane tylko raz; ponownie wyhodowane drzewo na tym samym polu jest osobnym zbiorem.
+Pierwsza wypłata drewna z danego drzewa daje dodatkowo 12 punktów, zgodnie z `GAME_CONFIG.scoring.resources.tree`. Eksport obejmuje też `resourcesCollected`, `resourcesByType` i kategorię punktów `resources`. Każde drzewo jest zaliczane tylko raz; ponownie wyhodowane drzewo na tym samym polu ma nowy identyfikator.
 
 Zapisywanie wyników i ranking lokalny
 
@@ -52,23 +64,23 @@ Nowe wyniki są sprawdzane pod kątem zgodności punktów, liczników, wersji re
 
 Zapisy są kolejkowane; gdy przeglądarka udostępnia Web Locks, blokada obejmuje również inne karty. Przy niedostępnym API pozostaje serializacja w jednej karcie, bez gwarancji transakcji między kartami. Jest to ochrona przed przypadkowymi konfliktami, nie zabezpieczenie przed użytkownikiem modyfikującym JavaScript lub pamięć przeglądarki.
 
-`database/farmwars.sql` to niewykonany schemat do przyszłego importu. Wyniki są domyślnie niezweryfikowane i wyłączone z rankingu; przyszły PHP musi jawnie zatwierdzić je w transakcji. `database/.htaccess` blokuje publiczny dostęp do tego katalogu w Apache, jeśli serwer respektuje pliki `.htaccess`.
+`database/farmwars.sql` zawiera schemat do importu dla instalacji PHP. Wyniki zgłoszone przez przeglądarkę są niezweryfikowane i wyłączone z publicznego rankingu. `backend/results.php` sprawdza spójność danych i zapisuje je w transakcji. `database/.htaccess` blokuje publiczny dostęp do tego katalogu w Apache, jeśli serwer respektuje pliki `.htaccess`.
 
 
-Metadane szybkości i przyszły backend
+Metadane szybkości i backend
 
-Nowe podsumowania mają `schemaVersion: 2` oraz `initialGameSpeed`, `gameSpeed` (ostatnia szybkość tej partii), `simulationTimeSeconds` i `speedHistory`. Historia zaczyna się od czasu 0, a każda rzeczywista zmiana dodaje wpis, np.:
+Nowe podsumowania mają `schemaVersion: 3` oraz `initialGameSpeed`, `gameSpeed` (ostatnia efektywna szybkość tej partii), `simulationTimeSeconds` i `speedHistory`. Historia zaczyna się od czasu 0, a każda rzeczywista zmiana dodaje wpis, np. przy suwaku zmienionym z 1× na 2×:
 
 ```json
 [
-  { "atActiveSeconds": 0, "atSimulationSeconds": 0, "gameSpeed": 1 },
-  { "atActiveSeconds": 20, "atSimulationSeconds": 20, "gameSpeed": 2 }
+  { "atActiveSeconds": 0, "atSimulationSeconds": 0, "gameSpeed": 1.1 },
+  { "atActiveSeconds": 20, "atSimulationSeconds": 22, "gameSpeed": 2.2 }
 ]
 ```
 
 Zmiany w pauzie mają ten sam aktywny czas i nie zwiększają obu liczników. Po zakończeniu historii nie zmienia nawet wybór innej preferencji dla następnej gry. `rankingRepository` zachowuje te dane i sprawdza ciągłość historii oraz zgodność całkowitego czasu symulacji z jej odcinkami. Wersja 1 nadal jest obsługiwana; dla starych wyników szybkość jest nieznana, nie dopisywana jako 1×.
 
-Przyszłe PHP może zapisać te metadane w już zaprojektowanym `run_statistics.extra_stats` jako obiekt `speed` z własną wersją formatu, a `game_runs.active_time_ms` pozostawić czasem rzeczywistym. Nie wymaga to obecnie zmiany SQL. Serwer powinien sprawdzać dopuszczalne mnożniki, kolejność i czasy wpisów oraz całkę szybkości; sam spójny dziennik przesłany przez JavaScript nadal nie dowodzi uczciwości gry. Polityka porównywania partii o różnych szybkościach pozostaje decyzją przyszłego rankingu — bieżący Score nie jest normalizowany mnożnikiem.
+`backend/results.php` obsługuje schematy 2 i 3, sprawdza dopuszczalne mnożniki, kolejność i czasy wpisów oraz całkę szybkości. Akceptuje także wcześniejsze mnożniki, aby zachować zgodność starszych wyników. Sam spójny dziennik przesłany przez JavaScript nie dowodzi uczciwości gry; takie wyniki pozostają oznaczone jako zgłoszone przez klienta.
 
 Regresje szybkości: `node --test tests/speed.test.cjs`. Testy używają symulowanego zegara i DOM; kontrola natywnego suwaka i reguł responsywnych nie jest testem fizycznego telefonu. Próba otwarcia lokalnego podglądu w przeglądarce narzędziowej zakończyła się timeoutem; wygląd i fizyczne gesty dotyku wymagają weryfikacji w przeglądarce użytkownika.
 
@@ -120,9 +132,9 @@ Tryb lokalny działa po otwarciu `index.html` z dysku lub przez `http://localhos
 
 Silnik przyjmuje czas monotoniczny w milisekundach przez `advanceGameTo(now)` i używa kroku symulacji 10 ms. Pętla przeglądarki dostarcza czas i odświeża widok. Skrypt bez DOM może wywoływać tę samą funkcję według własnego harmonogramu. Przy długim zastoju w aktywnej karcie silnik rozlicza kolejne kroki zamiast stosować dawny limit ruchu pojedynczej klatki. Pauza i ukrycie karty nadal zatrzymują zegar. Do powtórzenia partii potrzebne są to samo ziarno xorshift32, geometria, reguły, czasy akcji i ich kolejność. Tasowanie kolejki fal używa Fishera–Yatesa, więc konkretna kolejność bossów może różnić się od wcześniejszego losowania. Skład fal i stawki pozostały te same.
 
-Geometria używa wymiarów odniesienia przekazanych przez widok przy starcie. Zachowuje dotychczasowy próg wejścia na pole i oblicza prostokąt obróconego pocisku w jednostkach logicznych. Zmiana rozmiaru okna w trakcie partii skaluje rysowanie i pozostawia kolizje w geometrii zapisanej na starcie. Testy porównują próg kontaktu i kolizję dla pól o szerokości 48, 100 i 135. Trafienie jest rozliczane względem pozycji symulowanej. Wcześniej odczyt prostokąta wroga mógł uwzględniać opóźnienie animacji CSS, dlatego dokładna chwila trafienia może się różnić.
+Nowe partie używają stałej geometrii odniesienia: jedno pole ma 100 pikseli logicznych. Widok skaluje położenie i rozmiary przeciwników oraz pocisków do rzeczywistej wielkości pól, więc tempo ruchu i kolizje nie zależą od rozdzielczości startowej. Zmiana rozmiaru okna w trakcie partii skaluje rysowanie, zachowując geometrię zapisaną w stanie. Testy sprawdzają start i zmianę rozmiaru przy małych oraz dużych polach, a także progi kontaktu i kolizje. Trafienia wynikają z pozycji symulowanych, bez odczytu animowanych prostokątów DOM.
 
-`exportGameState()` zwraca kopię migawki JSON w wersji 1. Zawiera stan planszy, zasobów, walki, punktów, kolejkę timerów, zegary, ID i stan generatora. `restoreGameState(snapshot, now)` odtwarza migawkę z czasem monotonicznym nowego środowiska. W przeglądarce `restoreGameView(snapshot)` odświeża też widok. Migawki są interfejsem silnika i są oddzielne od formatu podsumowania v2 zapisywanego przez PHP.
+`exportGameState()` zwraca kopię migawki JSON w wersji 1. Zawiera stan planszy, zasobów, walki, punktów, kolejkę timerów, zegary, ID i stan generatora. `restoreGameState(snapshot, now)` odtwarza migawkę z czasem monotonicznym nowego środowiska. W przeglądarce `restoreGameView(snapshot)` odświeża też widok. Migawki są interfejsem silnika i są oddzielne od formatu podsumowania v3 zapisywanego przez PHP.
 
 ## Etap 3 — podgląd ekonomii serwerowej
 

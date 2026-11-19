@@ -13,6 +13,7 @@ function engine() {
     const context = vm.createContext({});
     const run = code => vm.runInContext(code, context);
     for (const script of scripts) run(script);
+    run('GAME_CONFIG.baseGameSpeed = 1; resetScore();');
     return {
         run,
         save: () => JSON.parse(run('JSON.stringify(exportGameState())')),
@@ -22,6 +23,104 @@ function engine() {
 
 const start = `initializeGameModel(123456, 1700000000000);
     gameState.gameStarted = true; startScore('replay-test'); setSimulationPaused(false, 0);`;
+
+test('pierwsze przygotowania pozwalają kupić i wyhodować sadzonkę nawet przy minimalnym plonie trawy', () => {
+    const { run } = engine();
+    run('GAME_CONFIG.freeLocalPurchases = false; gameRandom = () => 0;');
+    run(start);
+    const collectGrass = 'gameState.tiles.filter(tile => tile.object?.type === \'grass\').forEach(tile => collectResource(tile.id));';
+    run(collectGrass);
+    assert.equal(run('canAfford(\'seedling\')'), false);
+    for (let time = 10000; time <= 50000; time += 10000) {
+        run(`advanceGameTo(${time});`);
+        run(collectGrass);
+    }
+    assert.equal(run('gameState.seedCount'), 21);
+    run('const seedlingPlot = gameState.tiles.find(tile => !tile.object);');
+    assert.equal(run('placeItem(seedlingPlot.id, \'seedling\')'), true);
+    assert.equal(run('gameState.seedCount'), 1);
+    run('advanceGameTo(65000);');
+    assert.equal(run('seedlingPlot.object.type'), 'tree');
+    assert.equal(run('gameState.isInvasionActive'), false);
+});
+
+test('początkowe złoża, kolejne spawny i limit pierwszego kamienia są zgodne z konfiguracją', () => {
+    for (const seed of [1, 2, 3, 7, 42, 99, 123, 456, 2026, 123456]) {
+        const { run } = engine();
+        run(`initializeGameModel(${seed}, 1700000000000);
+            gameState.gameStarted = true; startScore('opening'); setSimulationPaused(false, 0);`);
+        assert.equal(run('gameState.tiles.length'), 50);
+        assert.equal(run('gameState.tiles.filter(tile => tile.object?.type === \'grass\').length'), 6);
+        assert.equal(run('gameState.tiles.filter(tile => tile.object?.type === \'stone\').length'), 11);
+        assert.equal(run('gameState.tiles.filter(tile => tile.object?.type === \'grass\').every(tile => [1, 2].includes(tile.object.size))'), true);
+        run(`let grassDeposits = 0; let stoneDeposits = 0;
+            function collectOpening() {
+                for (const tile of gameState.tiles) {
+                    if (tile.object?.type === 'grass') { grassDeposits++; collectResource(tile.id); }
+                    if (tile.object?.type === 'stone') { stoneDeposits++; collectResource(tile.id); }
+                }
+            }
+            collectOpening();`);
+        for (let time = 10000; time < 120000; time += 10000) {
+            run(`advanceGameTo(${time}); collectOpening();`);
+        }
+        assert.equal(run('grassDeposits'), 39);
+        assert.equal(run('stoneDeposits'), 15);
+        assert.ok(run('gameState.stoneCount') <= 28);
+        assert.ok(run('gameState.seedCount') >= 39);
+        assert.equal(run('gameState.isInvasionActive'), false);
+        run('advanceGameTo(120000);');
+        assert.equal(run('gameState.isInvasionActive'), true);
+    }
+});
+
+test('armata ulepsza się do poziomu 5, zapisuje poziom i przypisuje pociskowi obrażenia oraz wylot', () => {
+    const game = createGame();
+    game.start();
+    game.run(`const cannonTile = gameState.tiles.find(tile => !tile.object);
+        gameState.woodCount = shopItems.cannon.wood;
+        gameState.stoneCount = shopItems.cannon.stone;
+        placeItem(cannonTile.id, 'cannon'); renderGameState();`);
+    assert.equal(game.run('upgradeBuilding(cannonTile.id, cannonTile.object.id)'), false);
+    game.run('gameState.stoneCount = 500');
+    for (let level = 1; level <= 5; level++) {
+        if (level > 1) assert.equal(game.run('upgradeBuilding(cannonTile.id, cannonTile.object.id)'), true);
+        game.run('renderGameState(); fireCannon(cannonTile); renderGameState();');
+        assert.equal(game.run('cannonTile.object.level'), level);
+        assert.equal(game.run('tileViews[cannonTile.id].object.style.backgroundImage'),
+            `url('assets/images/cannon_lvl_${level}.png')`);
+        assert.equal(game.run('inspectBuilding(cannonTile.id)'), true);
+        assert.match(game.document.getElementById('buildingUpgradeProduction').textContent, /Obrażenia:/);
+        assert.equal(game.run('gameState.activeProjectiles.at(-1).damage'), [3, 4, 5, 6, 8][level - 1]);
+        assert.equal(game.run('gameState.activeProjectiles.at(-1).originX'), game.run(`cannonMuzzles[${level - 1}].x`));
+        assert.equal(game.run('gameState.activeProjectiles.at(-1).originY'), game.run(`cannonMuzzles[${level - 1}].y`));
+    }
+    assert.equal(game.run('gameState.stoneCount'), 0);
+    assert.equal(game.run('upgradeBuilding(cannonTile.id, cannonTile.object.id)'), false);
+    assert.equal(game.document.getElementById('upgradeBuildingButton').disabled, true);
+    game.run('const cannonSnapshot = exportGameState();');
+    game.run('restoreGameState(cannonSnapshot, performance.now())');
+    assert.equal(game.run('gameState.tiles[cannonTile.id].object.level'), 5);
+    assert.equal(game.run('gameState.activeProjectiles[0].damage'), 3);
+    assert.equal(game.run('gameState.activeProjectiles.at(-1).damage'), 8);
+});
+
+test('trafienia armat wszystkich poziomów odbierają właściwe HP', () => {
+    for (let level = 1; level <= 5; level++) {
+        const { run } = engine();
+        run(start);
+        run(`gameState.tiles.forEach(tile => { tile.object = null; });
+            gameState.isInvasionActive = true; gameState.totalEnemiesInWave = 2;
+            const tile = gameState.tiles[8];
+            tile.object = createBoardObject('cannon', { level: ${level}, hp: 10, lastShot: 0 });
+            spawnEnemy(0, 'normal'); fireCannon(tile);
+            const shot = gameState.activeProjectiles[0];
+            shot.xOffset = (9.5 - 8 - shot.originX) * gameState.geometry.columnPitch;
+            updateProjectiles(0);`);
+        assert.equal(run('gameState.activeEnemies[0].hp'), 10 - [3, 4, 5, 6, 8][level - 1]);
+        assert.equal(run('gameState.activeProjectiles.length'), 0);
+    }
+});
 
 test('silnik bez DOM zbiera zasoby, sprawdza ceny i nalicza drewno po wyrośnięciu sadzonki', () => {
     const { run, save } = engine();
@@ -69,7 +168,7 @@ test('ulepszanie producentów pobiera odpowiedni surowiec i zwiększa następną
         placeItem(quarry.id, 'quarry');`);
     assert.equal(run("applyGameAction({ type: 'upgrade', tileId: tree.id, objectId: tree.object.id })"), false);
     assert.equal(run("applyGameAction({ type: 'upgrade', tileId: quarry.id, objectId: quarry.object.id })"), false);
-    run('gameState.woodCount = 250; gameState.stoneCount = 25;');
+    run('gameState.woodCount = 250; gameState.stoneCount = 25; gameState.seedCount = 50;');
     assert.equal(run('upgradeBuilding(tree.id, quarry.object.id)'), false);
     assert.equal(run('upgradeBuilding(quarry.id, quarry.object.id)'), true);
     for (let level = 2; level <= 5; level++) {
@@ -83,7 +182,51 @@ test('ulepszanie producentów pobiera odpowiedni surowiec i zwiększa następną
     assert.equal(run('gameState.woodCount + gameState.stoneCount'), 0);
     run('advanceGameTo(15000);');
     assert.equal(run('gameState.woodCount'), 15);
-    assert.equal(run('gameState.stoneCount'), 8);
+    assert.equal(run('gameState.stoneCount'), 9);
+});
+
+test('ulepszenie drzewa pobiera drewno i nasiona razem, a brak jednego zasobu blokuje całą operację', () => {
+    const game = createGame();
+    game.start();
+    game.run(`const upgradedTree = gameState.tiles.find(tile => !tile.object);
+        upgradedTree.object = createBoardObject('seedling');
+        growToTree(upgradedTree, getGameTime());
+        gameState.woodCount = 250; gameState.seedCount = 4;
+        renderGameState(); inspectBuilding(upgradedTree.id);`);
+    const button = game.document.getElementById('upgradeBuildingButton');
+    assert.match(button.textContent, /25 drewna \+ 5 nasion/);
+    assert.equal(button.disabled, true);
+    assert.equal(game.run('upgradeBuilding(upgradedTree.id, upgradedTree.object.id)'), false);
+    assert.equal(game.run('gameState.woodCount'), 250);
+    assert.equal(game.run('gameState.seedCount'), 4);
+    game.run('gameState.woodCount = 24; gameState.seedCount = 50;');
+    assert.equal(game.run('upgradeBuilding(upgradedTree.id, upgradedTree.object.id)'), false);
+    assert.equal(game.run('gameState.seedCount'), 50);
+    game.run('gameState.woodCount = 250; updateBuildingUpgrade();');
+    assert.equal(button.disabled, false);
+    for (let level = 2; level <= 5; level++) {
+        assert.equal(game.run('upgradeBuilding(upgradedTree.id, upgradedTree.object.id)'), true);
+        game.run('renderGameState();');
+        assert.equal(game.run('upgradedTree.object.level'), level);
+        assert.equal(game.run('tileViews[upgradedTree.id].object.style.backgroundImage'),
+            `url('assets/images/tree_lvl_${level}.png')`);
+    }
+    assert.equal(game.run('gameState.woodCount + gameState.seedCount'), 0);
+    assert.equal(button.disabled, true);
+    assert.equal(game.run('upgradeBuilding(upgradedTree.id, upgradedTree.object.id)'), false);
+    game.run('const treeUpgradeSave = exportGameState(); restoreGameState(treeUpgradeSave, performance.now());');
+    assert.equal(game.run('gameState.tiles[upgradedTree.id].object.level'), 5);
+    assert.equal(game.run('gameState.seedCount'), 0);
+});
+
+test('darmowy tryb nadal pomija oba koszty ulepszania drzew', () => {
+    const { run } = engine();
+    run(start);
+    run(`GAME_CONFIG.freeLocalPurchases = true;
+        const freeTree = gameState.tiles.find(tile => !tile.object);
+        placeItem(freeTree.id, 'seedling'); growToTree(freeTree, 0);`);
+    for (let level = 2; level <= 5; level++) assert.equal(run('upgradeBuilding(freeTree.id, freeTree.object.id)'), true);
+    assert.equal(run('gameState.woodCount + gameState.seedCount'), 0);
 });
 
 test('naprawa kosztuje ćwierć ceny i przywraca połowę maksymalnego życia', () => {
@@ -228,4 +371,23 @@ test('zmiana szerokości okna skaluje rysowanie wroga bez zmiany geometrii parti
     assert.equal(game.run('gameState.geometry.tileWidth'), 100);
     assert.equal(game.run('gameState.activeEnemies[0].currentCol'), 9);
     assert.match(game.run('enemyViews.values().next().value.style.transform'), /translateX\(-19\.2px\)/);
+    assert.ok(Math.abs(parseFloat(game.run('enemyViews.values().next().value.style.width')) - 57.6) < 0.00001);
+});
+
+test('start na małym i dużym ekranie zachowuje tę samą geometrię oraz proporcje walki', () => {
+    for (const width of [25, 48, 100, 164]) {
+        const browser = { tileWidth: width };
+        const game = createGame({}, browser);
+        game.start();
+        game.run(`gameState.tiles.forEach(tile => { tile.object = null; });
+            gameState.isInvasionActive = true; spawnEnemy(0, 'normal'); spawnEnemy(1, 'boss');
+            fireCannon(gameState.tiles[0]); renderGameState();`);
+        assert.equal(game.run('gameState.geometry.tileWidth'), 100);
+        assert.equal(game.run('gameState.geometry.columnPitch'), 100);
+        const drawnWidth = parseFloat(game.run('enemyViews.values().next().value.style.width'));
+        assert.ok(Math.abs(drawnWidth - width * 1.2) < 0.00001);
+        game.advance(1000);
+        assert.ok(Math.abs(game.run('gameState.activeEnemies[0].offsetX') - 41.25) < 0.00001);
+        assert.ok(Math.abs(game.run('gameState.activeEnemies[1].offsetX') - 33.75) < 0.00001);
+    }
 });

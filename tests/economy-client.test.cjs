@@ -125,7 +125,7 @@ test('tryb podglądu korzysta z widoku gry bez uruchamiania lokalnego zegara', a
     assert.equal(game.run('gameState.tiles[0].object'), null);
 });
 
-test('serwerowy zestaw reguł odpowiada obecnym kosztom, szybkościom, HP i zegarowi ekonomii', () => {
+test('serwerowy zestaw reguł zachowuje wspólne koszty, szybkości, HP i własny odstęp trawy', () => {
     const sql = fs.readFileSync(path.join(__dirname, '../database/003-economy.sql'), 'utf8');
     const rules = JSON.parse(sql.match(/\n    '(\{[\s\S]*?\})'\n\)/)[1]);
     const game = createGame();
@@ -140,7 +140,8 @@ test('serwerowy zestaw reguł odpowiada obecnym kosztom, szybkościom, HP i zega
     assert.deepEqual(rules.shop, shop);
     assert.deepEqual(rules.speeds, config.gameSpeeds);
     assert.equal(rules.growthMs, config.treeGrowthTime);
-    assert.equal(rules.grassInterval, config.spawnIntervals.grass);
+    assert.equal(rules.grassInterval, 15000);
+    assert.equal(config.spawnIntervals.grass, 10000);
     assert.equal(rules.stoneInterval, config.spawnIntervals.stone);
     for (const item of ['cannon', 'tree', 'woodFence', 'stoneWall']) {
         assert.equal(rules.hp[item], config.hpValues[item]);
