@@ -2152,10 +2152,12 @@ tr[data-place="3"] .ranking__place {
 }
 .mobile-interface .game-core__stage {
   padding: 6px;
+  min-height: 0;
 }
 .mobile-interface .game-board {
   grid-template-columns: clamp(36px, 6vw, 72px) minmax(0, 1fr);
   gap: 6px;
+  min-height: 0;
 }
 .mobile-interface .game-board__house-slot {
   padding: 2px;
@@ -2323,6 +2325,25 @@ tr[data-place="3"] .ranking__place {
 .mobile-interface.hosting-overlay-space .building-upgrade {
   bottom: calc(var(--hosting-overlay-height) + max(6px, env(safe-area-inset-bottom)));
   max-height: min(160px, var(--viewport-height, 100dvh) - var(--hosting-overlay-height) - var(--mobile-header-height) - 12px);
+}
+
+.fullscreen-prompt {
+  position: fixed;
+  z-index: 10000002;
+  bottom: calc(var(--hosting-overlay-height, 0px) + 8px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 3px solid #8e6847;
+  background: #11971c;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1.2rem;
+}
+.fullscreen-prompt[hidden] {
+  display: none;
 }
 
 /*# sourceMappingURL=main.css.map */

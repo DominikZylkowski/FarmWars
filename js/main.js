@@ -17,6 +17,25 @@ function syncFullscreenButton() {
     const active = Boolean(document.fullscreenElement);
     button.textContent = active ? 'WYJDŹ Z PEŁNEGO EKRANU' : 'PEŁNY EKRAN';
     button.setAttribute('aria-pressed', String(active));
+    if (active) {
+        const prompt = document.getElementById('fullscreenPrompt');
+        if (prompt) prompt.hidden = true;
+    }
+}
+
+let previousPortraitState = null;
+async function enterFullscreenAfterRotation() {
+    if (!isMobileInterface() || isPortraitBlocked() || document.fullscreenElement ||
+        !document.documentElement?.requestFullscreen || document.fullscreenEnabled === false) return;
+    try {
+        await document.documentElement.requestFullscreen();
+        try { await window.screen?.orientation?.lock?.('landscape'); } catch { /* Obrót ręczny. */ }
+        syncFullscreenButton();
+    } catch {
+        const prompt = document.getElementById('fullscreenPrompt');
+        if (prompt && !isPortraitBlocked()) prompt.hidden = false;
+    }
+    scheduleAppScaleUpdate();
 }
 
 async function toggleFullscreen() {
@@ -51,8 +70,15 @@ function syncDeviceLayout() {
     viewportStyle?.setProperty('--viewport-left', `${viewport?.offsetLeft ?? 0}px`);
     const mobile = isMobileInterface();
     const hostname = window.location?.hostname ?? '';
-    document.body.classList.toggle('hosting-overlay-space', hostname.endsWith('.netlify.app'));
+    document.body.classList.toggle('hosting-overlay-space', mobile && hostname.endsWith('.netlify.app'));
     const blocked = isPortraitBlocked();
+    const rotatedToLandscape = previousPortraitState === true && mobile && !blocked;
+    previousPortraitState = blocked;
+    if (rotatedToLandscape) void enterFullscreenAfterRotation();
+    if (blocked) {
+        const prompt = document.getElementById('fullscreenPrompt');
+        if (prompt) prompt.hidden = true;
+    }
     document.body.classList.toggle('mobile-interface', mobile);
     document.body.classList.toggle('orientation-blocked', blocked);
     const guard = document.getElementById('rotationGuard');
@@ -75,7 +101,12 @@ function fitBoardToViewport() {
     if (!house) return;
     const gap = parseFloat(getComputedStyle(board).columnGap) || 0;
     const availableWidth = Math.max(0, board.clientWidth - house.offsetWidth - gap);
-    const width = Math.min(availableWidth, board.clientHeight * GAME_CONFIG.columns / GAME_CONFIG.rows);
+    const core = document.querySelector('.game-core');
+    const stage = document.querySelector('.game-core__stage');
+    const stageStyle = stage ? getComputedStyle(stage) : null;
+    const verticalPadding = (parseFloat(stageStyle?.paddingTop) || 0) + (parseFloat(stageStyle?.paddingBottom) || 0);
+    const availableHeight = Math.max(0, Math.min(board.clientHeight, core ? core.clientHeight - verticalPadding : board.clientHeight));
+    const width = Math.min(availableWidth, availableHeight * GAME_CONFIG.columns / GAME_CONFIG.rows);
     grid.style.width = Math.max(0, width) + 'px';
 }
 
@@ -895,6 +926,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupInteraction();
     const fullscreenButton = document.getElementById('fullscreenButton');
     if (fullscreenButton) fullscreenButton.onclick = toggleFullscreen;
+    const fullscreenPrompt = document.getElementById('fullscreenPrompt');
+    if (fullscreenPrompt) fullscreenPrompt.onclick = enterFullscreenAfterRotation;
     syncFullscreenButton();
     syncDeviceLayout();
     if (serverGame) serverGame.setup();

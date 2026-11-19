@@ -24,11 +24,33 @@ function engine() {
 const start = `initializeGameModel(123456, 1700000000000);
     gameState.gameStarted = true; startScore('replay-test'); setSimulationPaused(false, 0);`;
 
-test('wersja Netlify rezerwuje miejsce na nakładkę hostingu', () => {
+test('wersja Netlify rezerwuje miejsce na nakładkę tylko na urządzeniach dotykowych', () => {
     for (const hostname of ['fabulous-medovik-44941b.netlify.app', 'deploy-preview-5--farmwars.netlify.app', 'localhost', 'farmwars.example']) {
-        const game = createGame({}, { location: { hostname, protocol: 'file:' } });
-        assert.equal(game.document.body.classList.contains('hosting-overlay-space'), hostname.endsWith('.netlify.app'));
+        for (const mobile of [false, true]) {
+            const game = createGame({}, { location: { hostname, protocol: 'file:' }, matchMedia: () => ({ matches: mobile }) });
+            assert.equal(game.document.body.classList.contains('hosting-overlay-space'), mobile && hostname.endsWith('.netlify.app'));
+        }
     }
+});
+
+test('obrót do poziomu próbuje pełnego ekranu, a odmowa pozwala ponowić dotknięciem', async () => {
+    const game = createGame({}, { innerWidth: 390, innerHeight: 844, matchMedia: () => ({ matches: true }) });
+    game.document.documentElement = new game.Element('html');
+    let attempts = 0;
+    game.document.documentElement.requestFullscreen = async () => { attempts++; throw new Error('activation required'); };
+    game.run('window.innerWidth = 844; window.innerHeight = 390; syncDeviceLayout()');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(attempts, 1);
+    assert.equal(game.document.getElementById('fullscreenPrompt').hidden, false);
+    game.run('syncDeviceLayout()');
+    assert.equal(attempts, 1);
+    game.document.documentElement.requestFullscreen = async () => {
+        attempts++;
+        game.document.fullscreenElement = game.document.documentElement;
+    };
+    await game.document.getElementById('fullscreenPrompt').onclick();
+    assert.equal(attempts, 2);
+    assert.equal(game.document.getElementById('fullscreenPrompt').hidden, true);
 });
 
 test('pełny ekran obsługuje wejście, wyjście i odmowę bez zatrzymania gry', async () => {

@@ -1640,8 +1640,8 @@ body {
   .topBar .topBar__remove-label { font-size: 0.8rem; }
   .topBar__remove .topBar__hammer { zoom: 0.8; }
   .game-core { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; overflow: hidden; }
-  .game-core__stage { padding: 6px; }
-  .game-board { grid-template-columns: clamp(36px, 6vw, 72px) minmax(0, 1fr); gap: 6px; }
+  .game-core__stage { padding: 6px; min-height: 0; }
+  .game-board { grid-template-columns: clamp(36px, 6vw, 72px) minmax(0, 1fr); gap: 6px; min-height: 0; }
   .game-board__house-slot { padding: 2px; }
   .game-board__house-slot img { transform: none; }
   .game-tile__level { padding: 1px 2px; font-size: 9px; }
@@ -1717,4 +1717,21 @@ body {
     bottom: calc(var(--hosting-overlay-height) + max(6px, env(safe-area-inset-bottom)));
     max-height: min(160px, calc(var(--viewport-height, 100dvh) - var(--hosting-overlay-height) - var(--mobile-header-height) - 12px));
   }
+}
+
+.fullscreen-prompt {
+  position: fixed;
+  z-index: 10000002;
+  bottom: calc(var(--hosting-overlay-height, 0px) + 8px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 3px solid $border-color;
+  background: $start-button-color;
+  color: $color-white-pure;
+  font: inherit;
+  font-size: 1.2rem;
+  &[hidden] { display: none; }
 }
