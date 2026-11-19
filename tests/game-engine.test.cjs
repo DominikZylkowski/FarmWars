@@ -168,7 +168,7 @@ test('ulepszanie producentów pobiera odpowiedni surowiec i zwiększa następną
         placeItem(quarry.id, 'quarry');`);
     assert.equal(run("applyGameAction({ type: 'upgrade', tileId: tree.id, objectId: tree.object.id })"), false);
     assert.equal(run("applyGameAction({ type: 'upgrade', tileId: quarry.id, objectId: quarry.object.id })"), false);
-    run('gameState.woodCount = 250; gameState.stoneCount = 25; gameState.seedCount = 50;');
+    run('gameState.woodCount = 250; gameState.stoneCount = 25; gameState.seedCount = 40;');
     assert.equal(run('upgradeBuilding(tree.id, quarry.object.id)'), false);
     assert.equal(run('upgradeBuilding(quarry.id, quarry.object.id)'), true);
     for (let level = 2; level <= 5; level++) {
@@ -182,7 +182,7 @@ test('ulepszanie producentów pobiera odpowiedni surowiec i zwiększa następną
     assert.equal(run('gameState.woodCount + gameState.stoneCount'), 0);
     run('advanceGameTo(15000);');
     assert.equal(run('gameState.woodCount'), 15);
-    assert.equal(run('gameState.stoneCount'), 9);
+    assert.equal(run('gameState.stoneCount'), 11);
 });
 
 test('ulepszenie drzewa pobiera drewno i nasiona razem, a brak jednego zasobu blokuje całą operację', () => {
@@ -191,17 +191,17 @@ test('ulepszenie drzewa pobiera drewno i nasiona razem, a brak jednego zasobu bl
     game.run(`const upgradedTree = gameState.tiles.find(tile => !tile.object);
         upgradedTree.object = createBoardObject('seedling');
         growToTree(upgradedTree, getGameTime());
-        gameState.woodCount = 250; gameState.seedCount = 4;
+        gameState.woodCount = 250; gameState.seedCount = 3;
         renderGameState(); inspectBuilding(upgradedTree.id);`);
     const button = game.document.getElementById('upgradeBuildingButton');
-    assert.match(button.textContent, /25 drewna \+ 5 nasion/);
+    assert.match(button.textContent, /25 drewna \+ 4 nasion/);
     assert.equal(button.disabled, true);
     assert.equal(game.run('upgradeBuilding(upgradedTree.id, upgradedTree.object.id)'), false);
     assert.equal(game.run('gameState.woodCount'), 250);
-    assert.equal(game.run('gameState.seedCount'), 4);
-    game.run('gameState.woodCount = 24; gameState.seedCount = 50;');
+    assert.equal(game.run('gameState.seedCount'), 3);
+    game.run('gameState.woodCount = 24; gameState.seedCount = 40;');
     assert.equal(game.run('upgradeBuilding(upgradedTree.id, upgradedTree.object.id)'), false);
-    assert.equal(game.run('gameState.seedCount'), 50);
+    assert.equal(game.run('gameState.seedCount'), 40);
     game.run('gameState.woodCount = 250; updateBuildingUpgrade();');
     assert.equal(button.disabled, false);
     for (let level = 2; level <= 5; level++) {

@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="keywords" content="HTML, SCSS, JavaScript, Game, Tower Defense">
     <meta name="author" content="Dominik Żyłkowski">
     <title>FarmWars</title>
@@ -22,6 +22,15 @@
 </head>
 
 <body>
+
+<section class="rotation-guard" id="rotationGuard" role="alert" aria-labelledby="rotationTitle" hidden>
+    <div class="rotation-guard__card">
+        <div class="rotation-guard__device" aria-hidden="true"></div>
+        <h1 id="rotationTitle">Obróć urządzenie</h1>
+        <p>FarmWars gramy w poziomie.</p>
+        <p class="rotation-guard__note">Obróć telefon lub tablet, aby odsłonić planszę. Rozgrywka w pionie jest wstrzymana.</p>
+    </div>
+</section>
 
 <div id="appScale" class="app-scale">
 

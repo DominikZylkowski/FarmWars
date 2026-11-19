@@ -1,8 +1,33 @@
 // ------------------------- Skalowanie całej gry -------------------------
 function updateAppScale() {
+    syncDeviceLayout();
     fitBoardToViewport();
     renderGameState();
     positionBuildingUpgrade();
+}
+
+function isMobileInterface() {
+    return window.matchMedia?.('(any-pointer: coarse)').matches ?? false;
+}
+
+function isPortraitBlocked() {
+    return isMobileInterface() && window.innerHeight > window.innerWidth;
+}
+
+function syncDeviceLayout() {
+    const mobile = isMobileInterface();
+    const blocked = isPortraitBlocked();
+    document.body.classList.toggle('mobile-interface', mobile);
+    document.body.classList.toggle('orientation-blocked', blocked);
+    const guard = document.getElementById('rotationGuard');
+    if (guard) guard.hidden = !blocked;
+    const app = document.getElementById('appScale');
+    if (app) app.inert = blocked;
+    if (blocked) {
+        closeBuildingUpgrade();
+        document.getElementById('rankingDialog')?.close();
+        if (gameState.gameStarted && !gameState.gamePaused && !gameState.gameEnded) setGamePaused(true);
+    }
 }
 
 function fitBoardToViewport() {
@@ -81,6 +106,7 @@ function scheduleAppScaleUpdate() {
 }
 
 function setGamePaused(shouldPause, options = {}) {
+    if (!shouldPause && isPortraitBlocked()) return;
     if (serverGame) return serverGame.pause(shouldPause);
     if (gameState.gameEnded) return;
     if (!shouldPause && (!gameState.gameStarted || gameState.tutorialVisible || document.hidden)) return;
@@ -134,6 +160,7 @@ function togglePause() {
 
 window.addEventListener('resize', scheduleAppScaleUpdate);
 window.addEventListener('orientationchange', scheduleAppScaleUpdate);
+window.matchMedia?.('(any-pointer: coarse)').addEventListener?.('change', scheduleAppScaleUpdate);
 window.addEventListener('scroll', positionBuildingUpgrade, { capture: true, passive: true });
 window.visualViewport?.addEventListener('resize', scheduleAppScaleUpdate);
 window.visualViewport?.addEventListener('scroll', positionBuildingUpgrade);
@@ -271,7 +298,7 @@ const TUTORIAL_STEPS = [
     },
     {
         title: 'Buduj z topbaru',
-        text: `Przeciągnij przedmiot ze sklepu na wolne pole albo wybierz go klawiszem ${serverGame ? '1–4' : '1–5'} i kliknij pole. Ceny są pod przyciskami. Przedmioty można wybrać, gdy masz dość surowców.`
+        text: `Dotknij lub kliknij przedmiot w sklepie, a następnie podświetlone wolne pole. Ponowne wybranie przedmiotu anuluje budowę. Na komputerze możesz też przeciągać lub używać klawiszy ${serverGame ? '1–4' : '1–5'}. Ceny są pod przyciskami; wybór wymaga odpowiednich surowców.`
     },
     ...(serverGame ? [{
         title: 'Zbieraj drewno',
@@ -352,6 +379,7 @@ function skipTutorial() {
 }
 
 function handleStartButton() {
+    if (isPortraitBlocked()) return;
     if (!gameState.gameStarted) {
         if (gameState.gameEnded || document.hidden) return;
         captureBoardGeometry();
@@ -428,8 +456,8 @@ function positionBuildingUpgrade() {
     const tile = tileViews[selectedBuilding.tileId]?.element;
     if (!panel || panel.hidden || !tile) return;
 
-    const bottomPanel = window.matchMedia?.('(max-width: 768px), (hover: none) and (pointer: coarse)').matches ??
-        window.innerWidth <= 768;
+    const bottomPanel = isMobileInterface() ||
+        (window.matchMedia?.('(max-width: 768px), (hover: none) and (pointer: coarse)').matches ?? window.innerWidth <= 768);
     if (bottomPanel) {
         panel.style.left = '';
         panel.style.top = '';
@@ -531,6 +559,7 @@ function inspectBuilding(tileId) {
 }
 
 function handleGridClick(event) {
+    if (isPortraitBlocked() || gameState.gamePaused || gameState.gameEnded) return;
     const tile = event.target.closest('.game-tile');
     if (!tile) return;
     const tileId = tileIds.get(tile);
@@ -542,13 +571,24 @@ function handleGridClick(event) {
         }
         return;
     }
-    if (inspectBuilding(tileId)) return;
-    closeBuildingUpgrade();
-    if (selectedItemToPlace && tile.classList.contains('game-tile--can-place')) {
-        handlePlayerAction({ type: 'place', tileId, item: selectedItemToPlace });
+    if (selectedItemToPlace) {
+        if (tile.classList.contains('game-tile--can-place') &&
+            handlePlayerAction({ type: 'place', tileId, item: selectedItemToPlace })) saveLocalGame();
         return;
     }
+    if (inspectBuilding(tileId)) return;
+    closeBuildingUpgrade();
     handlePlayerAction({ type: 'collect', tileId });
+}
+
+function selectShopItem(item) {
+    if (!gameState.gameStarted || gameState.gamePaused || gameState.gameEnded || gameState.tutorialVisible ||
+        isPortraitBlocked() || draggedItem || !Object.hasOwn(shopItems, item) || !canAfford(item)) return false;
+    removingBuilding = false;
+    selectedItemToPlace = selectedItemToPlace === item ? null : item;
+    closeBuildingUpgrade();
+    updateVisualHighlights();
+    return true;
 }
 
 function setGameSpeed(speed) {
@@ -566,7 +606,7 @@ function updateShopButtons() {
         if (btn) {
             const affordable = canAfford(id);
             btn.disabled = !affordable;
-            btn.setAttribute('draggable', affordable);
+            btn.setAttribute('draggable', affordable && !isMobileInterface());
             const costs = document.getElementById(`${id}Costs`);
             const price = getShopCost(id);
             for (const row of costs?.children ?? []) {
@@ -704,7 +744,7 @@ function setupInteraction() {
     };
     if (closeUpgrade) closeUpgrade.onclick = closeBuildingUpgrade;
     upgradePanel?.addEventListener('pointerleave', event => {
-        if (event.pointerType !== 'mouse' || !selectedBuilding) return;
+        if (isMobileInterface() || event.pointerType !== 'mouse' || !selectedBuilding) return;
         const tile = tileViews[selectedBuilding.tileId]?.element;
         if (event.relatedTarget?.closest?.('.game-tile') !== tile) closeBuildingUpgrade();
     });
@@ -714,11 +754,11 @@ function setupInteraction() {
     if (grid) {
         grid.onclick = handleGridClick;
         grid.addEventListener('pointerover', event => {
-            if (event.pointerType !== 'mouse' || draggedItem || selectedItemToPlace || removingBuilding) return;
+            if (isMobileInterface() || event.pointerType !== 'mouse' || draggedItem || selectedItemToPlace || removingBuilding) return;
             inspectBuilding(tileIds.get(event.target.closest('.game-tile')));
         });
         grid.addEventListener('pointerout', event => {
-            if (event.pointerType !== 'mouse' || !selectedBuilding) return;
+            if (isMobileInterface() || event.pointerType !== 'mouse' || !selectedBuilding) return;
             const tile = tileViews[selectedBuilding.tileId]?.element;
             if (event.target.closest('.game-tile') !== tile) return;
             if (event.relatedTarget?.closest?.('.game-tile') === tile ||
@@ -744,7 +784,8 @@ function setupInteraction() {
             btn.appendChild(shortcut);
             btn.setAttribute('aria-keyshortcuts', String(index + 1));
 
-            btn.setAttribute('draggable', 'true');
+            btn.onclick = () => selectShopItem(item);
+            btn.setAttribute('draggable', String(!isMobileInterface()));
             btn.ondragstart = handleDragStart;
             btn.ondragend = () => {
                 draggedItem = null;
@@ -792,9 +833,7 @@ function setupInteraction() {
         e.preventDefault();
         const item = SHOP_SHORTCUTS[index];
         if (!canAfford(item)) return;
-        removingBuilding = false;
-        selectedItemToPlace = selectedItemToPlace === item ? null : item;
-        updateVisualHighlights();
+        selectShopItem(item);
     };
 
     const speedSlider = document.getElementById('volumeRange');
@@ -814,6 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBoard();
     fitBoardToViewport();
     setupInteraction();
+    syncDeviceLayout();
     if (serverGame) serverGame.setup();
     else {
         showServerGameLinks();

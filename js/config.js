@@ -23,9 +23,9 @@ const GAME_CONFIG = {
     treeWoodPerLevel: [6, 8, 10, 12, 15],
     quarryProductionInterval: 15000,
     // Wczesne inwestycje w produkcję pozwalają domknąć pełny rozwój przed 10. falą.
-    quarryStonePerLevel: [6, 9, 14, 19, 23],
+    quarryStonePerLevel: [7, 11, 17, 23, 28],
     producerUpgradeCosts: [25, 50, 75, 100],
-    treeUpgradeSeedCosts: [5, 10, 15, 20],
+    treeUpgradeSeedCosts: [4, 8, 12, 16],
     hpValues: { 
         tree: 5, 
         cannon: 10, 

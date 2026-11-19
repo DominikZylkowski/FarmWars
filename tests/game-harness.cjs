@@ -98,6 +98,7 @@ function createGame(storedValues = {}, browser = {}) {
         return element;
     }
     const root = add('div', 'appScale');
+    add('section', 'rotationGuard');
     const board = add('div', 'gameBoard', root);
     add('div', '', board, 'game-board__house-slot');
     add('div', 'gameGrid', board);
@@ -130,7 +131,7 @@ function createGame(storedValues = {}, browser = {}) {
     add('div', 'statusContainer', root);
     const topBar = add('div', 'mainTopBar', root, 'topBar');
     add('button', 'removeBuildingButton', topBar);
-    for (const item of ['cannon', 'seedling', 'woodFence', 'stoneWall']) add('button', `${item}Button`, root);
+    for (const item of ['cannon', 'seedling', 'woodFence', 'stoneWall', 'quarry']) add('button', `${item}Button`, root);
     const document = {
         body, hidden: false,
         createElement: tag => new Element(tag),
@@ -144,7 +145,8 @@ function createGame(storedValues = {}, browser = {}) {
         window: {
             location: browser.location,
             innerWidth: browser.innerWidth ?? 2000,
-            innerHeight: 900,
+            innerHeight: browser.innerHeight ?? 900,
+            matchMedia: browser.matchMedia,
             addEventListener: (name, handler) => listeners.set(`window:${name}`, handler),
             localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) }
         },

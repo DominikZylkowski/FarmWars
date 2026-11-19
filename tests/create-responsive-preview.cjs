@@ -4,9 +4,14 @@ const { pathToFileURL } = require('node:url');
 
 const root = path.join(__dirname, '..');
 const base = process.argv[2] || pathToFileURL(root + path.sep).href;
-const sizes = [[320, 568], [360, 640], [390, 844], [667, 375], [768, 1024],
+const sizes = [[320, 568], [360, 640], [390, 844], [568, 320], [667, 375], [844, 390], [768, 1024],
+    [1024, 600], [1180, 820], [1366, 1024],
     [1024, 768], [1280, 720], [1366, 768], [1920, 1080], [2560, 1440]];
 const fixture = String.raw`
+const nativeMatchMedia = window.matchMedia.bind(window);
+window.matchMedia = query => query === '(any-pointer: coarse)'
+    ? { matches: Math.max(innerWidth, innerHeight) <= 1366, addEventListener() {} }
+    : nativeMatchMedia(query);
 const qaStorage = new Map();
 Object.defineProperty(window, 'localStorage', { value: {
     getItem: key => qaStorage.get(key) ?? null,
@@ -21,6 +26,13 @@ window.addEventListener('load', async () => {
     function audit(mode) {
         const issues = [...qaErrors];
         const w = innerWidth;
+        if (isPortraitBlocked()) {
+            const guard = document.getElementById('rotationGuard');
+            if (guard.hidden || !document.getElementById('appScale').inert) issues.push('Brak blokady pionu');
+            parent.postMessage({ farmwarsQA: { size: innerWidth + 'x' + innerHeight, mode, issues,
+                top: 0, tile: 0, board: 'OBRÓĆ URZĄDZENIE' } }, '*');
+            return;
+        }
         for (const selector of ['.topBar__status', '.topBar__right-side', '.topBar__actions',
             '.topBar__resource', '.shop-item__cost', '#gameGrid', '#gameMenu:not(.is-hidden)',
             '#tutorialOverlay:not(.is-hidden)', '#buildingUpgrade:not([hidden])', '#rankingDialog']) {
@@ -33,6 +45,11 @@ window.addEventListener('load', async () => {
             }
         }
         const top = document.querySelector('.topBar').getBoundingClientRect();
+        if (isMobileInterface()) {
+            const shop = document.querySelector('.topBar__actions').getBoundingClientRect();
+            if (Math.abs(shop.top - top.bottom) > 2) issues.push('Odstęp nad bocznym sklepem');
+            if (shop.bottom > innerHeight + 1) issues.push('Boczny sklep poza ekranem');
+        }
         const grid = document.getElementById('gameGrid').getBoundingClientRect();
         if (grid.height < 100) issues.push('plansza za mała: ' + Math.round(grid.height));
         const result = { size: innerWidth + 'x' + innerHeight, mode, issues: [...new Set(issues)],
@@ -43,6 +60,7 @@ window.addEventListener('load', async () => {
     async function apply(mode) {
         document.querySelectorAll('dialog, .end-screen').forEach(element => element.remove());
         stopGameFrame();
+        renderedEnd = null; renderedHud = '';
         initializeGameModel(123456, 0, { tutorialCompleted: true });
         gameState.gameStarted = true;
         gameState.gamePaused = true;
@@ -61,6 +79,8 @@ window.addEventListener('load', async () => {
             }
         }
         fitBoardToViewport(); captureBoardGeometry(); renderGameState();
+        syncDeviceLayout();
+        if (isPortraitBlocked()) { audit(mode); return; }
         if (mode === 'combat') {
             gameState.gamePaused = false; gameState.isInvasionActive = true; gameState.totalEnemiesInWave = 77;
             for (const [row, type] of ['normal', 'boss', 'master'].entries()) {

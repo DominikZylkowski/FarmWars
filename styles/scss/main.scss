@@ -1492,3 +1492,189 @@ body {
   .menu__title { padding: 8px; font-size: 2.2rem; }
   .speed-settings { margin-top: 4px; }
 }
+
+/* ========================= MOBILE LANDSCAPE ========================= */
+.rotation-guard {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  background: repeating-linear-gradient(0deg, rgba(#000, 0.12) 0 2px, transparent 2px 16px), #263d27;
+
+  &[hidden] { display: none; }
+
+  &__card {
+    @include framed-panel;
+    width: min(420px, 100%);
+    padding: 28px 20px;
+    text-align: center;
+    h1 { margin: 16px 0 8px; font-size: clamp(2rem, 8vw, 3rem); }
+    p { margin: 8px 0; font-size: 1.5rem; }
+  }
+
+  &__note { color: #65472f; font-size: 1.2rem !important; line-height: 1.2; }
+  &__device {
+    position: relative;
+    width: 94px;
+    height: 54px;
+    margin: 8px auto 24px;
+    border: 5px solid #3d2a1e;
+    background: #527f3b;
+    box-shadow: inset 0 0 0 3px #a5c574, 4px 4px 0 #bb9869;
+    transform: rotate(-12deg);
+    &::after { content: '↻'; position: absolute; top: -28px; right: -32px; color: #65472f; font-size: 3rem; }
+  }
+}
+
+.orientation-blocked {
+  overflow: hidden;
+  .end-screen, .tutorial, .building-upgrade { visibility: hidden; }
+}
+
+.mobile-interface {
+  --mobile-header-height: 60px;
+  --mobile-shop-width: 112px;
+  overflow: hidden;
+
+  .app-scale {
+    display: grid;
+    grid-template-columns: var(--mobile-shop-width) minmax(0, 1fr);
+    grid-template-rows: var(--mobile-header-height) minmax(0, 1fr);
+    min-height: 0;
+    height: 100dvh;
+    overflow: hidden;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  .topBar {
+    position: static;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 0;
+    padding: 4px 6px;
+    gap: 6px;
+    border-bottom-width: 2px;
+  }
+  .topBar__logo { display: none; }
+  .topBar__status {
+    grid-column: 1;
+    grid-row: 1;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-self: stretch;
+    padding: 2px 6px;
+    gap: 2px 6px;
+    .topBar__timer-label, .topBar__combat-count { grid-column: 2; grid-row: 1; font-size: 1rem; }
+    .topBar__timer-label strong { font-size: 1.4rem; }
+    .topBar__level { font-size: 1rem; }
+    .topBar__speed { font-size: 1rem; }
+  }
+  .topBar__right-side {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    max-width: none;
+    margin: 0;
+    gap: 2px 4px;
+  }
+  .topBar__right-side .topBar__resources { grid-column: 1; grid-row: 1; display: flex; gap: 3px; }
+  .topBar__resource { min-width: 56px; padding: 1px 4px; border-width: 2px; gap: 2px; font-size: 1rem; }
+  .topBar__resource-icon { width: 24px; height: 24px; }
+  .topBar__score { grid-column: 1; grid-row: 2; justify-content: center; padding: 1px 4px; font-size: 0.9rem; border-width: 1px; }
+  .topBar__menu-btn { grid-column: 2; grid-row: 1 / 3; min-width: 52px; min-height: 44px; padding: 4px; font-size: 1rem; }
+
+  .topBar__actions {
+    position: absolute;
+    grid-column: auto;
+    grid-row: auto;
+    top: calc(var(--mobile-header-height) + env(safe-area-inset-top));
+    bottom: env(safe-area-inset-bottom);
+    left: env(safe-area-inset-left);
+    width: var(--mobile-shop-width);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: min-content;
+    align-content: start;
+    align-items: start;
+    gap: 6px 4px;
+    overflow-y: auto;
+    padding: 6px 4px;
+    border-right: 2px solid $color-panel-border;
+    background: $color-topbar-bg;
+    scrollbar-width: thin;
+    overscroll-behavior: contain;
+    &:has(.shop-item--demolition:not([hidden])) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  .shop-item, .shop-item--demolition { width: 100%; min-width: 0; margin: 0; }
+  .shop-item { user-select: none; -webkit-touch-callout: none; }
+  .game-tile, .building-upgrade { touch-action: manipulation; }
+  .shop-item__shortcut { display: none; }
+  .topBar__button, .topBar .topBar__remove {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    width: 100%;
+    min-height: 48px;
+    padding: 3px 1px;
+    border-width: 2px;
+    gap: 2px;
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+    touch-action: manipulation;
+  }
+  .topBar__button--quarry { font-size: 0.68rem; }
+  .shop-item__product-icon { width: 24px; height: 24px; margin: 0; }
+  .shop-item__cost { padding: 1px; gap: 1px; flex-wrap: wrap; font-size: 0.8rem; }
+  .shop-item__cost-icon { width: 18px; height: 18px; }
+  .shop-item__cost-value { min-width: 0; }
+  .topBar .topBar__remove-label { font-size: 0.8rem; }
+  .topBar__remove .topBar__hammer { zoom: 0.8; }
+  .game-core { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; overflow: hidden; }
+  .game-core__stage { padding: 6px; }
+  .game-board { grid-template-columns: clamp(36px, 6vw, 72px) minmax(0, 1fr); gap: 6px; }
+  .game-board__house-slot { padding: 2px; }
+  .game-board__house-slot img { transform: none; }
+  .game-tile__level { padding: 1px 2px; font-size: 9px; }
+
+  .building-upgrade {
+    left: calc(var(--mobile-shop-width) + env(safe-area-inset-left) + 6px);
+    right: max(6px, env(safe-area-inset-right));
+    bottom: max(6px, env(safe-area-inset-bottom));
+    top: auto;
+    width: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 8px;
+    padding: 8px;
+    max-height: min(160px, 42dvh);
+    &[hidden] { display: none; }
+    .building-upgrade__header { grid-column: 1 / -1; gap: 6px; img { width: 26px; height: 26px; } }
+    .building-upgrade__production { grid-column: 1 / -1; margin: 0; padding: 4px 6px; font-size: 0.95rem; }
+    button { min-height: 44px; font-size: 1rem; }
+    #upgradeBuildingButton { overflow-wrap: anywhere; }
+  }
+  .menu { width: min(540px, calc(100% - 24px)); padding: 12px; gap: 10px; }
+  .menu__title { padding: 6px; font-size: 2rem; }
+  .menu__button-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .menu__button, .menu #rankingButton { min-height: 44px; padding: 6px; font-size: 1.3rem; }
+  .speed-settings { grid-column: 1 / -1; padding: 8px; margin: 0; }
+  .speed-control { font-size: 1.1rem; gap: 4px; input[type=range] { height: 32px; } }
+  .speed-bands { margin-top: 4px; }
+  .speed-bands__band { padding: 4px 2px; font-size: 0.9rem; }
+  .menu--saved-game .menu__button-group { display: none; }
+  .tutorial { left: calc(50% + var(--mobile-shop-width) / 2); width: min(720px, calc(100% - var(--mobile-shop-width) - 16px)); bottom: 8px; }
+  .tutorial__panel { padding: 8px; gap: 6px; }
+  .tutorial__title { font-size: 1.3rem; }
+  .tutorial__text { font-size: 1.1rem; }
+  .tutorial__button { min-height: 44px; padding: 6px 12px; font-size: 1rem; }
+}
+
+@media (min-width: 900px) {
+  .mobile-interface { --mobile-shop-width: 160px; }
+}

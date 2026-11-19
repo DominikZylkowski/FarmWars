@@ -96,7 +96,7 @@ function renderTile(tile) {
             const bar = document.createElement('div');
             bar.className = 'game-tile__growth';
             bar.setAttribute('role', 'progressbar');
-            bar.setAttribute('aria-label', 'Czas do wyrośnięcia drzewa');
+            bar.setAttribute('aria-label', 'Postęp wzrostu sadzonki');
             bar.setAttribute('aria-valuemin', '0');
             bar.setAttribute('aria-valuemax', '100');
             bar.appendChild(document.createElement('div'));
@@ -106,7 +106,7 @@ function renderTile(tile) {
         }
         const now = serverGame ? serverGame.simulationMs : getGameTime();
         const remaining = Math.max(0, object.growthAt - now);
-        const percent = Math.min(100, remaining / GAME_CONFIG.treeGrowthTime * 100);
+        const percent = Math.max(0, Math.min(100, (1 - remaining / GAME_CONFIG.treeGrowthTime) * 100));
         const seconds = `${Math.ceil(remaining / 1000)} s`;
         view.growthBar.firstChild.style.width = `${percent}%`;
         view.growthBar.setAttribute('aria-valuenow', String(Math.round(percent)));
@@ -278,6 +278,7 @@ function renderEndScreenIfNeeded() {
 }
 
 function handlePlayerAction(action) {
+    if (isPortraitBlocked()) return false;
     if (serverGame) return serverGame.action(action);
     advanceGameTo(performance.now());
     const applied = applyGameAction(action);

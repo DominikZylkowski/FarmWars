@@ -2,12 +2,103 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createGame } = require('./game-harness.cjs');
 
+test('dotknięcie każdego przedmiotu podświetla wolne pola i pozwala go postawić bez przeciągania', () => {
+    const game = createGame({}, { innerWidth: 844, innerHeight: 390,
+        matchMedia: query => ({ matches: query === '(any-pointer: coarse)', addEventListener() {} }) });
+    game.start();
+    game.run(`gameState.tiles.forEach(tile => { tile.object = null; });
+        gameState.seedCount = 500; gameState.woodCount = 5000; gameState.stoneCount = 5000; renderGameState();`);
+    for (const item of ['seedling', 'cannon', 'woodFence', 'stoneWall', 'quarry']) {
+        const button = game.document.getElementById(`${item}Button`);
+        assert.equal(button.getAttribute('draggable'), 'false');
+        button.onclick();
+        assert.equal(button.getAttribute('aria-pressed'), 'true');
+        game.run('var tapPlot = gameState.tiles.find(tile => !tile.object);');
+        assert.equal(game.run('tileViews[tapPlot.id].element.classList.contains(\'game-tile--can-place\')'), true);
+        game.run('handleGridClick({ target: { closest: () => tileViews[tapPlot.id].element } });');
+        assert.equal(game.run('tapPlot.object.type'), item);
+        assert.equal(game.run('tileViews[tapPlot.id].element.classList.contains(\'game-tile--can-place\')'), false);
+        const balance = game.run('gameState.seedCount + gameState.woodCount + gameState.stoneCount');
+        game.run('handleGridClick({ target: { closest: () => tileViews[tapPlot.id].element } });');
+        assert.equal(game.run('gameState.seedCount + gameState.woodCount + gameState.stoneCount'), balance);
+        const saved = JSON.parse(game.storage.get('farmwarsLocalGame'));
+        assert.equal(saved.state.tiles[game.run('tapPlot.id')].object.type, item);
+        button.onclick();
+        assert.equal(button.getAttribute('aria-pressed'), 'false');
+        assert.equal(game.run('tileViews.some(view => view.element.classList.contains(\'game-tile--can-place\'))'), false);
+    }
+});
+
+test('mobilny panel ulepszania pozostaje otwarty po zdarzeniach myszy i zamyka się przy wyborze budowy', () => {
+    const game = createGame({}, { innerWidth: 1024, innerHeight: 768,
+        matchMedia: query => ({ matches: query === '(any-pointer: coarse)', addEventListener() {} }) });
+    game.start();
+    game.run(`const touchTree = gameState.tiles.find(tile => !tile.object);
+        touchTree.object = createBoardObject('seedling'); growToTree(touchTree, getGameTime());
+        gameState.woodCount = 100; gameState.seedCount = 100; renderGameState();
+        handleGridClick({ target: { closest: () => tileViews[touchTree.id].element } });`);
+    const panel = game.document.getElementById('buildingUpgrade');
+    const grid = game.document.getElementById('gameGrid');
+    assert.equal(panel.hidden, false);
+    panel.onpointerleave({ pointerType: 'mouse' });
+    grid.onpointerout({ pointerType: 'mouse' });
+    assert.equal(panel.hidden, false);
+    game.document.getElementById('upgradeBuildingButton').onclick();
+    assert.equal(game.run('touchTree.object.level'), 2);
+    assert.equal(panel.hidden, false);
+    game.document.getElementById('seedlingButton').onclick();
+    assert.equal(panel.hidden, true);
+    assert.equal(game.run('selectedItemToPlace'), 'seedling');
+});
+
+test('telefon i tablet wymagają poziomu, obrót pauzuje grę i nie pozwala wznowić jej w pionie', () => {
+    const mobile = { innerWidth: 390, innerHeight: 844,
+        matchMedia: query => ({ matches: query === '(any-pointer: coarse)', addEventListener() {} }) };
+    const game = createGame({}, mobile);
+    const guard = game.document.getElementById('rotationGuard');
+    const app = game.document.getElementById('appScale');
+    assert.equal(guard.hidden, false);
+    assert.equal(app.inert, true);
+    game.start();
+    assert.equal(game.run('gameState.gameStarted'), false);
+    game.run('window.innerWidth = 844; window.innerHeight = 390; syncDeviceLayout();');
+    assert.equal(guard.hidden, true);
+    assert.equal(app.inert, false);
+    game.start();
+    game.advance(1000);
+    assert.equal(Math.round(game.run('getGameTime()')), 1000);
+    game.run('window.innerWidth = 390; window.innerHeight = 844; syncDeviceLayout();');
+    assert.equal(game.run('gameState.gamePaused'), true);
+    game.advance(5000);
+    assert.equal(Math.round(game.run('getGameTime()')), 1000);
+    game.run('setGamePaused(false); handleStartButton();');
+    assert.equal(game.run('gameState.gamePaused'), true);
+    assert.equal(game.run("handlePlayerAction({ type: 'hit', enemyId: 1 })"), false);
+    game.run('window.innerWidth = 1024; window.innerHeight = 1366; syncDeviceLayout();');
+    assert.equal(guard.hidden, false);
+    game.run('window.innerWidth = 1366; window.innerHeight = 1024; syncDeviceLayout();');
+    assert.equal(guard.hidden, true);
+    assert.equal(game.run('gameState.gamePaused'), true);
+    game.run('handleStartButton();');
+    game.advance(1000);
+    assert.equal(Math.round(game.run('getGameTime()')), 2000);
+});
+
+test('wąskie okno komputera z myszą nie jest blokowane jako telefon', () => {
+    const game = createGame({}, { innerWidth: 390, innerHeight: 844,
+        matchMedia: () => ({ matches: false, addEventListener() {} }) });
+    game.start();
+    assert.equal(game.document.getElementById('rotationGuard').hidden, true);
+    assert.equal(game.run('gameState.gameStarted'), true);
+    assert.equal(game.run('gameState.gamePaused'), false);
+});
+
 test('dotknięcie budynku wybiera dolny panel, a ulepszenie i zamknięcie działają bez najeżdżania myszą', () => {
     const game = createGame({}, { innerWidth: 390 });
     game.start();
     game.run(`const mobileTree = gameState.tiles.find(tile => !tile.object);
         mobileTree.object = createBoardObject('seedling'); growToTree(mobileTree, getGameTime());
-        gameState.woodCount = 25; gameState.seedCount = 5; renderGameState();
+        gameState.woodCount = 25; gameState.seedCount = 4; renderGameState();
         handleGridClick({ target: { closest: () => tileViews[mobileTree.id].element } });`);
     const panel = game.document.getElementById('buildingUpgrade');
     assert.equal(panel.hidden, false);
@@ -45,7 +136,7 @@ test('wejście do menu i samouczka nie uruchamia generowania zasobów', () => {
     assert.equal(game.run('gameState.tiles.filter(tile => tile.object?.type === \'grass\').length'), 9);
 });
 
-test('pasek sadzonki odlicza czas gry, zatrzymuje się w pauzie i znika po wzroście', () => {
+test('pasek sadzonki ładuje się od zera, zatrzymuje się w pauzie i znika po wzroście', () => {
     const game = createGame();
     game.start();
     game.run(`const seedlingTile = gameState.tiles.find(tile => !tile.object);
@@ -54,13 +145,16 @@ test('pasek sadzonki odlicza czas gry, zatrzymuje się w pauzie i znika po wzro�
         renderGameState();`);
     const label = () => game.run('tileViews[seedlingTile.id].growthBar.children[1].textContent');
     assert.equal(label(), '15 s');
+    assert.equal(game.run('tileViews[seedlingTile.id].growthBar.firstChild.style.width'), '0%');
     game.advance(5000);
     assert.equal(label(), '10 s');
     const width = game.run('tileViews[seedlingTile.id].growthBar.firstChild.style.width');
-    assert.ok(parseFloat(width) > 66 && parseFloat(width) < 67);
+    assert.ok(parseFloat(width) > 33 && parseFloat(width) < 34);
+    assert.equal(game.run('tileViews[seedlingTile.id].growthBar.getAttribute(\'aria-valuenow\')'), '33');
     game.run('togglePause()');
     game.advance(5000);
     assert.equal(label(), '10 s');
+    assert.equal(game.run('tileViews[seedlingTile.id].growthBar.firstChild.style.width'), width);
     game.run('togglePause()');
     game.advance(10100);
     assert.equal(game.run('seedlingTile.object.type'), 'tree');
