@@ -31,6 +31,13 @@ function resetScore(runId = createLocalId('run')) {
     for (const ids of Object.values(scoredEvents)) ids.clear();
 }
 
+function awardFarmSecretBonus() {
+    if (scoreState.status !== 'active' || gameState.gameEnded || scoreState.points.secret) return false;
+    scoreState.points.secret = 2500;
+    updateScoreTotal();
+    return true;
+}
+
 function updateScoreTotal() {
     scoreState.totalScore = Object.values(scoreState.points).reduce((total, points) => total + points, 0);
 }

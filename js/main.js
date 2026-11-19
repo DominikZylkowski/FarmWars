@@ -787,7 +787,43 @@ function updateScoreUI() {
     }
 }
 
+function setupFarmSecret() {
+    const logo = document.getElementById('farmLogo');
+    if (!logo) return;
+    let clicks = 0;
+    let lastClick = 0;
+    let active = false;
+    const reveal = () => {
+        if (active) return;
+        const now = performance.now();
+        clicks = now - lastClick > 1200 ? 1 : clicks + 1;
+        lastClick = now;
+        if (clicks < 7) return;
+        clicks = 0;
+        if (serverGame || !awardFarmSecretBonus()) return;
+        updateScoreUI();
+        saveLocalGame();
+        active = true;
+        const secret = document.createElement('div');
+        secret.className = 'farm-secret';
+        const message = document.createElement('div');
+        message.className = 'farm-secret__message';
+        message.setAttribute('role', 'status');
+        message.textContent = 'Sekret odkryty! +2500 pkt do wyniku!';
+        secret.append(message);
+        document.body.appendChild(secret);
+        window.setTimeout(() => {
+            secret.remove();
+            active = false;
+        }, 6500);
+    };
+    logo.onclick = reveal;
+    const menuLogo = document.getElementById('menuFarmLogo');
+    if (menuLogo) menuLogo.onclick = reveal;
+}
+
 function setupInteraction() {
+    setupFarmSecret();
     const removeButton = document.getElementById('removeBuildingButton');
     if (removeButton) {
         removeButton.hidden = Boolean(serverGame);

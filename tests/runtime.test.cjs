@@ -2,6 +2,25 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createGame } = require('./game-harness.cjs');
 
+test('sekret dodaje 2500 punktów raz na grę, zachowuje bonus po wznowieniu i przechodzi walidację rankingu', () => {
+    const game = createGame();
+    assert.equal(game.run('awardFarmSecretBonus()'), false);
+    game.start();
+    const before = game.summary().totalScore;
+    assert.equal(game.run('awardFarmSecretBonus()'), true);
+    assert.equal(game.summary().totalScore, before + 2500);
+    assert.equal(game.run('awardFarmSecretBonus()'), false);
+    game.run('var secretSave = exportGameState(); restoreGameState(secretSave, performance.now());');
+    assert.equal(game.run('awardFarmSecretBonus()'), false);
+    game.advance(1000);
+    assert.equal(game.summary().points.secret, 2500);
+    game.run("finishScore('lost');");
+    assert.equal(game.run('validateScoreSummary(getScoreSummary()).points.secret'), 2500);
+    assert.equal(game.run('awardFarmSecretBonus()'), false);
+    game.run('resetScore(); startScore();');
+    assert.equal(game.run('awardFarmSecretBonus()'), true);
+});
+
 test('dotknięcie każdego przedmiotu podświetla wolne pola i pozwala go postawić bez przeciągania', () => {
     const game = createGame({}, { innerWidth: 844, innerHeight: 390,
         matchMedia: query => ({ matches: query === '(any-pointer: coarse)', addEventListener() {} }) });

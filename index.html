@@ -41,7 +41,7 @@
 
 <header class="topBar" id="mainTopBar">
     <!-- 1. LOGO -->
-    <div class="topBar__logo">FarmWars</div>
+    <button class="topBar__logo" id="farmLogo" type="button" aria-label="FarmWars">FarmWars</button>
 
     <!-- 2. PRZYCISKI AKCJI (SKLEP) -->
     <div class="topBar__actions">
@@ -162,7 +162,7 @@
 
 <!-- Menu Startowe / Overlay Pauzy -->
 <div class="menu menu--overlay" id="gameMenu">
-    <h1 class="menu__title">FarmWars</h1>
+    <h1 class="menu__title"><button id="menuFarmLogo" class="farm-secret-trigger" type="button">FarmWars</button></h1>
     <section class="saved-game" id="savedGameChoice" aria-labelledby="savedGameTitle" hidden>
         <h2 id="savedGameTitle">Zapisana rozgrywka</h2>
         <button class="saved-game__continue" id="continueSavedGameButton" type="button">Kontynuuj grę</button>

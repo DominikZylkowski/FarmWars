@@ -98,7 +98,11 @@ function validateScoreSummary(summary) {
             throw new Error('Niespójne liczniki wyniku.');
         }
     }
-    if (Object.keys(summary.points).length !== 4 || Object.entries(expected).some(([category, points]) =>
+    if (Object.hasOwn(summary.points, 'secret')) {
+        if (summary.points.secret !== 2500) throw new Error('Nieprawidłowy bonus za sekret.');
+        expected.secret = 2500;
+    }
+    if (Object.keys(summary.points).length !== Object.keys(expected).length || Object.entries(expected).some(([category, points]) =>
         !Object.hasOwn(summary.points, category) || !isCount(points) || summary.points[category] !== points) || !isCount(summary.totalScore) ||
         summary.totalScore !== Object.values(expected).reduce((sum, points) => sum + points, 0)) {
         throw new Error('Score nie zgadza się ze statystykami.');

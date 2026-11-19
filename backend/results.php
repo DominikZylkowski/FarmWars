@@ -94,7 +94,12 @@ function validateResult(array $input, array $rules): array
         $maps[$category] = (object) $map;
     }
     $submittedPoints = $summary['points'] ?? null;
-    requireValid(is_array($submittedPoints) && count($submittedPoints) === 4);
+    requireValid(is_array($submittedPoints));
+    if (array_key_exists('secret', $submittedPoints)) {
+        requireValid($submittedPoints['secret'] === 2500);
+        $points['secret'] = 2500;
+    }
+    requireValid(count($submittedPoints) === count($points));
     foreach ($points as $category => $value) {
         requireValid($value === ($submittedPoints[$category] ?? null));
     }
