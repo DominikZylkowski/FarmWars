@@ -104,6 +104,8 @@ function createGame(storedValues = {}, browser = {}) {
     add('div', 'gameGrid', board);
     const menu = add('div', 'gameMenu', root);
     add('button', 'startGameButton', menu);
+    add('button', 'fullscreenButton', menu);
+    add('small', 'fullscreenStatus', menu);
     const savedGameChoice = add('section', 'savedGameChoice', menu);
     savedGameChoice.hidden = true;
     add('button', 'continueSavedGameButton', savedGameChoice);

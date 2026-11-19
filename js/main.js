@@ -10,11 +10,45 @@ function isMobileInterface() {
     return window.matchMedia?.('(any-pointer: coarse)').matches ?? false;
 }
 
+function syncFullscreenButton() {
+    const button = document.getElementById('fullscreenButton');
+    if (!button) return;
+    button.hidden = !document.documentElement?.requestFullscreen || document.fullscreenEnabled === false;
+    const active = Boolean(document.fullscreenElement);
+    button.textContent = active ? 'WYJDŹ Z PEŁNEGO EKRANU' : 'PEŁNY EKRAN';
+    button.setAttribute('aria-pressed', String(active));
+}
+
+async function toggleFullscreen() {
+    const status = document.getElementById('fullscreenStatus');
+    if (status) status.textContent = '';
+    try {
+        if (document.fullscreenElement) {
+            await document.exitFullscreen();
+        } else {
+            await document.documentElement.requestFullscreen();
+            if (isMobileInterface()) {
+                try { await window.screen?.orientation?.lock?.('landscape'); } catch { /* Obrót ręczny pozostaje dostępny. */ }
+            }
+        }
+    } catch {
+        if (status) status.textContent = 'Nie udało się włączyć pełnego ekranu. Spróbuj ponownie.';
+    }
+    syncFullscreenButton();
+    scheduleAppScaleUpdate();
+}
+
 function isPortraitBlocked() {
     return isMobileInterface() && window.innerHeight > window.innerWidth;
 }
 
 function syncDeviceLayout() {
+    const viewport = window.visualViewport;
+    const viewportStyle = document.documentElement?.style;
+    viewportStyle?.setProperty('--viewport-height', `${viewport?.height ?? window.innerHeight}px`);
+    viewportStyle?.setProperty('--viewport-width', `${viewport?.width ?? window.innerWidth}px`);
+    viewportStyle?.setProperty('--viewport-top', `${viewport?.offsetTop ?? 0}px`);
+    viewportStyle?.setProperty('--viewport-left', `${viewport?.offsetLeft ?? 0}px`);
     const mobile = isMobileInterface();
     const blocked = isPortraitBlocked();
     document.body.classList.toggle('mobile-interface', mobile);
@@ -160,6 +194,10 @@ function togglePause() {
 
 window.addEventListener('resize', scheduleAppScaleUpdate);
 window.addEventListener('orientationchange', scheduleAppScaleUpdate);
+document.addEventListener('fullscreenchange', () => {
+    syncFullscreenButton();
+    scheduleAppScaleUpdate();
+});
 window.matchMedia?.('(any-pointer: coarse)').addEventListener?.('change', scheduleAppScaleUpdate);
 window.addEventListener('scroll', positionBuildingUpgrade, { capture: true, passive: true });
 window.visualViewport?.addEventListener('resize', scheduleAppScaleUpdate);
@@ -853,6 +891,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBoard();
     fitBoardToViewport();
     setupInteraction();
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    if (fullscreenButton) fullscreenButton.onclick = toggleFullscreen;
+    syncFullscreenButton();
     syncDeviceLayout();
     if (serverGame) serverGame.setup();
     else {

@@ -861,6 +861,10 @@ body {
 
 /* ========================= GAME SPEED CONTROL ========================= */
 .menu__button-group { width: 100%; }
+.menu__fullscreen { margin-top: 6px; font-size: 1rem; min-height: 44px; }
+.menu__fullscreen[hidden] { display: none; }
+.menu__fullscreen-status { display: block; font-size: 0.85rem; }
+.menu__fullscreen-status:empty { display: none; }
 .speed-settings {
   width: 100%;
   min-width: 0;
@@ -1544,7 +1548,7 @@ body {
     grid-template-columns: var(--mobile-shop-width) minmax(0, 1fr);
     grid-template-rows: var(--mobile-header-height) minmax(0, 1fr);
     min-height: 0;
-    height: 100dvh;
+    height: var(--viewport-height, 100dvh);
     overflow: hidden;
     padding: env(safe-area-inset-top) env(safe-area-inset-right)
       env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -1659,12 +1663,32 @@ body {
     button { min-height: 44px; font-size: 1rem; }
     #upgradeBuildingButton { overflow-wrap: anywhere; }
   }
-  .menu { width: min(540px, calc(100% - 24px)); padding: 12px; gap: 10px; }
+  .menu {
+    width: min(620px, calc(var(--viewport-width, 100vw) - 24px));
+    max-height: calc(var(--viewport-height, 100dvh) - 16px);
+    top: calc(var(--viewport-top, 0px) + var(--viewport-height, 100dvh) / 2);
+    left: calc(var(--viewport-left, 0px) + var(--viewport-width, 100vw) / 2);
+    padding: 10px;
+    gap: 8px;
+  }
+  .menu:not(.menu--saved-game):not(.is-hidden) {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.75fr) minmax(0, 1.25fr);
+    grid-template-rows: repeat(4, auto);
+    align-items: stretch;
+    .menu__title { grid-column: 1; grid-row: 1; align-content: center; }
+    .menu__button-group { display: contents; }
+    #startGameButton { grid-column: 1; grid-row: 2; }
+    #rankingButton { grid-column: 1; grid-row: 3; }
+    #fullscreenButton { grid-column: 1; grid-row: 4; margin: 0; font-size: 0.95rem; }
+    .menu__fullscreen-status { grid-column: 1 / -1; }
+    .speed-settings { grid-column: 2; grid-row: 1 / 5; align-self: stretch; }
+  }
   .menu__title { padding: 6px; font-size: 2rem; }
   .menu__button-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .menu__button, .menu #rankingButton { min-height: 44px; padding: 6px; font-size: 1.3rem; }
   .speed-settings { grid-column: 1 / -1; padding: 8px; margin: 0; }
-  .speed-control { font-size: 1.1rem; gap: 4px; input[type=range] { height: 32px; } }
+  .speed-control { font-size: 1rem; gap: 4px; input[type=range] { height: 32px; } }
   .speed-bands { margin-top: 4px; }
   .speed-bands__band { padding: 4px 2px; font-size: 0.9rem; }
   .menu--saved-game .menu__button-group { display: none; }

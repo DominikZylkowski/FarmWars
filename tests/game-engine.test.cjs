@@ -24,6 +24,42 @@ function engine() {
 const start = `initializeGameModel(123456, 1700000000000);
     gameState.gameStarted = true; startScore('replay-test'); setSimulationPaused(false, 0);`;
 
+test('pełny ekran obsługuje wejście, wyjście i odmowę bez zatrzymania gry', async () => {
+    const game = createGame();
+    game.document.documentElement = new game.Element('html');
+    game.document.documentElement.requestFullscreen = async () => {
+        game.document.fullscreenElement = game.document.documentElement;
+    };
+    game.document.exitFullscreen = async () => { game.document.fullscreenElement = null; };
+    await game.run('toggleFullscreen()');
+    assert.equal(game.document.getElementById('fullscreenButton').getAttribute('aria-pressed'), 'true');
+    await game.run('toggleFullscreen()');
+    assert.equal(game.document.getElementById('fullscreenButton').getAttribute('aria-pressed'), 'false');
+    game.document.documentElement.requestFullscreen = async () => { throw new Error('denied'); };
+    await game.run('toggleFullscreen()');
+    assert.match(game.document.getElementById('fullscreenStatus').textContent, /Nie udało/);
+    game.document.documentElement.requestFullscreen = undefined;
+    game.run('syncFullscreenButton()');
+    assert.equal(game.document.getElementById('fullscreenButton').hidden, true);
+});
+
+test('starszy zapis z małego ekranu zachowuje pozycję i przywraca wspólną prędkość robaków', () => {
+    const game = engine();
+    game.run(start);
+    game.run(`gameState.tiles.forEach(tile => { tile.object = null; });
+        gameState.isInvasionActive = true; spawnEnemy(0, 'normal'); spawnEnemy(1, 'boss');
+        gameState.geometry = { tileWidth: 48, columnPitch: 48, projectileLimit: 480 };
+        gameState.activeEnemies.forEach(enemy => { enemy.offsetX = 12; });`);
+    const snapshot = game.save();
+    game.restore(snapshot, 0);
+    assert.equal(game.run('gameState.activeEnemies[0].offsetX'), 25);
+    assert.equal(game.run('gameState.geometry.projectileLimit'), 1000);
+    assert.equal(snapshot.state.geometry.tileWidth, 48);
+    game.run('advanceGameTo(1000)');
+    assert.ok(Math.abs(game.run('gameState.activeEnemies[0].offsetX') - 66.25) < 0.00001);
+    assert.ok(Math.abs(game.run('gameState.activeEnemies[1].offsetX') - 58.75) < 0.00001);
+});
+
 test('pierwsze przygotowania pozwalają kupić i wyhodować sadzonkę nawet przy minimalnym plonie trawy', () => {
     const { run } = engine();
     run('GAME_CONFIG.freeLocalPurchases = false; gameRandom = () => 0;');

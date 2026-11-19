@@ -807,6 +807,25 @@ body {
   width: 100%;
 }
 
+.menu__fullscreen {
+  margin-top: 6px;
+  font-size: 1rem;
+  min-height: 44px;
+}
+
+.menu__fullscreen[hidden] {
+  display: none;
+}
+
+.menu__fullscreen-status {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.menu__fullscreen-status:empty {
+  display: none;
+}
+
 .speed-settings {
   width: 100%;
   min-width: 0;
@@ -1963,7 +1982,7 @@ tr[data-place="3"] .ranking__place {
   grid-template-columns: var(--mobile-shop-width) minmax(0, 1fr);
   grid-template-rows: var(--mobile-header-height) minmax(0, 1fr);
   min-height: 0;
-  height: 100dvh;
+  height: var(--viewport-height, 100dvh);
   overflow: hidden;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
@@ -2185,9 +2204,48 @@ tr[data-place="3"] .ranking__place {
   overflow-wrap: anywhere;
 }
 .mobile-interface .menu {
-  width: min(540px, 100% - 24px);
-  padding: 12px;
-  gap: 10px;
+  width: min(620px, var(--viewport-width, 100vw) - 24px);
+  max-height: calc(var(--viewport-height, 100dvh) - 16px);
+  top: calc(var(--viewport-top, 0px) + var(--viewport-height, 100dvh) / 2);
+  left: calc(var(--viewport-left, 0px) + var(--viewport-width, 100vw) / 2);
+  padding: 10px;
+  gap: 8px;
+}
+.mobile-interface .menu:not(.menu--saved-game):not(.is-hidden) {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.75fr) minmax(0, 1.25fr);
+  grid-template-rows: repeat(4, auto);
+  align-items: stretch;
+}
+.mobile-interface .menu:not(.menu--saved-game):not(.is-hidden) .menu__title {
+  grid-column: 1;
+  grid-row: 1;
+  align-content: center;
+}
+.mobile-interface .menu:not(.menu--saved-game):not(.is-hidden) .menu__button-group {
+  display: contents;
+}
+.mobile-interface .menu:not(.menu--saved-game):not(.is-hidden) #startGameButton {
+  grid-column: 1;
+  grid-row: 2;
+}
+.mobile-interface .menu:not(.menu--saved-game):not(.is-hidden) #rankingButton {
+  grid-column: 1;
+  grid-row: 3;
+}
+.mobile-interface .menu:not(.menu--saved-game):not(.is-hidden) #fullscreenButton {
+  grid-column: 1;
+  grid-row: 4;
+  margin: 0;
+  font-size: 0.95rem;
+}
+.mobile-interface .menu:not(.menu--saved-game):not(.is-hidden) .menu__fullscreen-status {
+  grid-column: 1/-1;
+}
+.mobile-interface .menu:not(.menu--saved-game):not(.is-hidden) .speed-settings {
+  grid-column: 2;
+  grid-row: 1/5;
+  align-self: stretch;
 }
 .mobile-interface .menu__title {
   padding: 6px;
@@ -2209,7 +2267,7 @@ tr[data-place="3"] .ranking__place {
   margin: 0;
 }
 .mobile-interface .speed-control {
-  font-size: 1.1rem;
+  font-size: 1rem;
   gap: 4px;
 }
 .mobile-interface .speed-control input[type=range] {

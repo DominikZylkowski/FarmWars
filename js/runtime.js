@@ -200,6 +200,19 @@ function restoreGameState(snapshot, now = 0) {
         throw new TypeError('Nieprawidłowy zapis gry.');
     }
 
+    // Older saves stored screen pixels. Keep positions within fields while moving
+    // them to the same logical units used by new games on every screen size.
+    const oldWidth = state.geometry.tileWidth;
+    const oldPitch = state.geometry.columnPitch;
+    if (oldWidth !== 100 || oldPitch !== 100) {
+        for (const enemy of state.activeEnemies) enemy.offsetX *= 100 / oldWidth;
+        for (const projectile of state.activeProjectiles) projectile.xOffset *= 100 / oldPitch;
+        state.geometry = {
+            tileWidth: 100, columnPitch: 100,
+            projectileLimit: state.geometry.projectileLimit * 100 / oldPitch
+        };
+    }
+
     for (const key of Object.keys(gameState)) {
         if (Object.hasOwn(state, key)) gameState[key] = state[key];
     }
