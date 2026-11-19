@@ -24,6 +24,13 @@ function engine() {
 const start = `initializeGameModel(123456, 1700000000000);
     gameState.gameStarted = true; startScore('replay-test'); setSimulationPaused(false, 0);`;
 
+test('wersja Netlify rezerwuje miejsce na nakładkę hostingu', () => {
+    for (const hostname of ['fabulous-medovik-44941b.netlify.app', 'deploy-preview-5--farmwars.netlify.app', 'localhost', 'farmwars.example']) {
+        const game = createGame({}, { location: { hostname, protocol: 'file:' } });
+        assert.equal(game.document.body.classList.contains('hosting-overlay-space'), hostname.endsWith('.netlify.app'));
+    }
+});
+
 test('pełny ekran obsługuje wejście, wyjście i odmowę bez zatrzymania gry', async () => {
     const game = createGame();
     game.document.documentElement = new game.Element('html');

@@ -1702,3 +1702,19 @@ body {
 @media (min-width: 900px) {
   .mobile-interface { --mobile-shop-width: 160px; }
 }
+
+// Keep the host's fixed badge outside the playable area, even if hiding fails.
+.hosting-overlay-space {
+  --hosting-overlay-height: 64px;
+  .app-scale { height: calc(var(--viewport-height, 100dvh) - var(--hosting-overlay-height)); }
+  .menu {
+    top: calc(var(--viewport-top, 0px) + (var(--viewport-height, 100dvh) - var(--hosting-overlay-height)) / 2);
+    max-height: calc(var(--viewport-height, 100dvh) - var(--hosting-overlay-height) - 16px);
+  }
+}
+.mobile-interface.hosting-overlay-space {
+  .building-upgrade {
+    bottom: calc(var(--hosting-overlay-height) + max(6px, env(safe-area-inset-bottom)));
+    max-height: min(160px, calc(var(--viewport-height, 100dvh) - var(--hosting-overlay-height) - var(--mobile-header-height) - 12px));
+  }
+}

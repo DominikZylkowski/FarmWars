@@ -50,6 +50,8 @@ function syncDeviceLayout() {
     viewportStyle?.setProperty('--viewport-top', `${viewport?.offsetTop ?? 0}px`);
     viewportStyle?.setProperty('--viewport-left', `${viewport?.offsetLeft ?? 0}px`);
     const mobile = isMobileInterface();
+    const hostname = window.location?.hostname ?? '';
+    document.body.classList.toggle('hosting-overlay-space', hostname.endsWith('.netlify.app'));
     const blocked = isPortraitBlocked();
     document.body.classList.toggle('mobile-interface', mobile);
     document.body.classList.toggle('orientation-blocked', blocked);
