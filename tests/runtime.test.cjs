@@ -161,13 +161,17 @@ test('pasek sadzonki ładuje się od zera, zatrzymuje się w pauzie i znika po w
     assert.equal(game.run('tileViews[seedlingTile.id].growthBar'), null);
 });
 
-test('ESC przed startem, ukończony samouczek i domyślna szybkość niezależna od dawnej głośności', () => {
+test('nowa gra pokazuje samouczek mimo wcześniejszego ukończenia, a Pomiń uruchamia jedną pętlę', () => {
     const game = createGame({ gameVolume: '0', farmwarsTutorialCompletedV2: '1' });
     game.run('togglePause();');
     assert.equal(game.run('gameState.gamePaused'), true);
     assert.equal(game.frames.size, 0);
     assert.equal(game.document.getElementById('volumeRange').value, '1');
     game.run('handleStartButton();');
+    assert.equal(game.run('gameState.tutorialVisible'), true);
+    assert.equal(game.run('gameState.gamePaused'), true);
+    assert.equal(game.frames.size, 0);
+    game.run('skipTutorial()');
     assert.equal(game.run('gameState.tutorialVisible'), false);
     assert.equal(game.run('gameState.gamePaused'), false);
     assert.equal(game.frames.size, 1);
@@ -207,11 +211,28 @@ test('po przeładowaniu można kontynuować zapis albo zacząć nową grę', () 
     assert.equal(resumed.run('gameState.woodCount'), 42);
     assert.equal(resumed.run('gameState.prepTime'), 118);
     assert.equal(resumed.run('gameState.gamePaused'), false);
+    assert.equal(resumed.run('gameState.tutorialVisible'), false);
 
     const restarted = createGame(storage);
     restarted.document.getElementById('restartSavedGameButton').onclick();
     assert.equal(restarted.run('gameState.woodCount'), 0);
     assert.equal(restarted.run('gameState.prepTime'), 120);
+    assert.equal(restarted.run('gameState.tutorialVisible'), true);
+    assert.equal(restarted.document.getElementById('tutorialStepProgress').textContent, '1/6');
+    assert.equal(restarted.run('gameState.gamePaused'), true);
+    assert.equal(restarted.frames.size, 0);
+});
+
+test('kontynuowanie zapisu zachowuje krok rozpoczętego samouczka', () => {
+    const game = createGame();
+    game.run('handleStartButton(); advanceTutorial(); advanceTutorial(); saveLocalGame();');
+    const resumed = createGame(Object.fromEntries(game.storage));
+    resumed.document.getElementById('continueSavedGameButton').onclick();
+    assert.equal(resumed.run('gameState.tutorialVisible'), true);
+    assert.equal(resumed.run('gameState.tutorialStep'), 2);
+    assert.equal(resumed.document.getElementById('tutorialStepProgress').textContent, '3/6');
+    assert.equal(resumed.run('gameState.gamePaused'), true);
+    assert.equal(resumed.frames.size, 0);
 });
 
 test('panel przy murku pozwala naprawić obiekt i zamyka się po zjechaniu kursorem', () => {

@@ -171,7 +171,7 @@ function scheduleAppScaleUpdate() {
 }
 
 function setGamePaused(shouldPause, options = {}) {
-    if (!shouldPause && (isPortraitBlocked() || document.body.classList.contains('fullscreen-entry'))) return;
+    if (!shouldPause && (isPortraitBlocked() || document.body?.classList?.contains('fullscreen-entry'))) return;
     if (serverGame) return serverGame.pause(shouldPause);
     if (gameState.gameEnded) return;
     if (!shouldPause && (!gameState.gameStarted || gameState.tutorialVisible || document.hidden)) return;
@@ -460,8 +460,7 @@ function handleStartButton() {
         updateScoreUI();
         const menu = document.getElementById('gameMenu');
         if (menu) menu.classList.add('is-hidden');
-        if (gameState.tutorialCompleted) setGamePaused(false);
-        else showTutorial();
+        showTutorial();
         saveLocalGame();
         return;
     }
@@ -917,7 +916,7 @@ function setupInteraction() {
 document.addEventListener('DOMContentLoaded', () => {
     initializeGameModel(Math.floor(Math.random() * 4294967296), Date.now() - performance.now(), {
         gameSpeed: getStoredGameSpeed(),
-        tutorialCompleted: safeGetStoredValue(TUTORIAL_STORAGE_KEY) === '1'
+        tutorialCompleted: false
     });
     renderBoard();
     fitBoardToViewport();
